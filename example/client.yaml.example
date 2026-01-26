@@ -60,7 +60,7 @@ transport:
     block: "aes"                    # Encryption: none, aes, blowfish, cast5, sm4, salsa20, etc.
     key: "your-secret-key-here"     # CHANGE ME: Secret key (must match server)
     
-    # Buffer settings (optional - good defaults provided)
+    # Buffer settings (optional)
     smuxbuf: 4194304       # 4MB SMUX buffer
     streambuf: 2097152     # 2MB stream buffer
 

@@ -84,7 +84,7 @@ You'll need to find your network interface name, local IP, and the MAC address o
 1.  **Find Interface and Local IP:** Run `ifconfig`. Look for your primary interface (e.g., `en0`). Its IP is listed under `inet`.
 2.  **Find Gateway MAC:**
     - First, find your gateway's IP: `netstat -rn | grep default`
-    - Then, find its MAC address with `arp <gateway_ip>` (e.g., `arp 192.168.1.1`).
+    - Then, find its MAC address with `arp -n <gateway_ip>` (e.g., `arp -n 192.168.1.1`).
 
 **On Windows:**
 
@@ -143,7 +143,7 @@ log:
 
 # Server listen configuration
 listen:
-  addr: ":9999" # CHANGE ME: Server listen port (must match network.local_addr port)
+  addr: ":9999" # CHANGE ME: Server listen port (must match network.ipv4.addr port)
 
 # Network interface settings
 network:
@@ -253,7 +253,7 @@ paqet uses a unified YAML configuration that works for both clients and servers.
 
 **Transport Security:** KCP requires identical keys on client/server (use `secret` command to generate).
 
-**Network Configuration:** Use your actual IP address in `network.local_addr`, not `127.0.0.1`. For servers, `network.local_addr` and `listen.addr` ports must match. For clients, use port `0` in `network.local_addr` to automatically assign a random available port and avoid conflicts.
+**Network Configuration:** Use your actual IP address in `network.ipv4.addr`, not `127.0.0.1`. For servers, `network.ipv4.addr` and `listen.addr` ports must match. For clients, use port `0` in `network.ipv4.addr` to automatically assign a random available port and avoid conflicts.
 
 **TCP Flag Cycling:** The `network.tcp.local_flag` and `network.tcp.remote_flag` arrays cycle through flag combinations to vary traffic patterns. Common patterns: `["PA"]` (standard data), `["S"]` (connection setup), `["A"]` (acknowledgment).
 
@@ -316,7 +316,7 @@ Security depends entirely on proper key management. Use the `secret` command to 
     - **`iptables` Rules:** Did you apply the firewall rules on the server?
     - **Incorrect Network Details:** Double-check all IPs, MAC addresses, and interface names.
     - **Cloud Provider Firewalls:** Ensure your cloud provider's security group allows TCP traffic on your `listen.addr` port.
-    - **NAT/Port Configuration:** For servers, ensure `listen.addr` and `network.local_addr` ports match. For clients, use port `0` in `network.local_addr` for automatic port assignment to avoid conflicts.
+    - **NAT/Port Configuration:** For servers, ensure `listen.addr` and `network.ipv4.addr` ports match. For clients, use port `0` in `network.ipv4.addr` for automatic port assignment to avoid conflicts.
 3.  **Use `ping` and `dump`:** Use `paqet ping -c config.yaml` to test the connection. Use `paqet dump -p <PORT>` on the server to see if packets are arriving.
 
 ## Acknowledgments
