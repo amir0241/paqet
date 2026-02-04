@@ -87,12 +87,14 @@ func Fatalf(format string, args ...any) {
 	// For fatal errors, we must ensure the message is delivered
 	// Use blocking write instead of select with default
 	if minLevel != None && Fatal >= minLevel {
+		// Check if any errors should suppress logging
+		// This matches the behavior in logf()
 		for _, arg := range args {
 			if err, ok := arg.(error); ok {
 				err = WErr(err)
 				if err == nil {
+					// Non-critical error, exit without logging
 					os.Exit(1)
-					return
 				}
 			}
 		}
@@ -101,6 +103,7 @@ func Fatalf(format string, args ...any) {
 		line := fmt.Sprintf("%s [%s] %s\n", now, Fatal.String(), fmt.Sprintf(format, args...))
 		
 		// Blocking write to ensure fatal message is always sent
+		// This is the key fix - use blocking write instead of select with default
 		logCh <- line
 		// Give the logger goroutine time to flush
 		time.Sleep(50 * time.Millisecond)

@@ -18,7 +18,10 @@ func TestFatalfUnderHighPressure(t *testing.T) {
 	oldStdout := os.Stdout
 	
 	// Create a pipe to capture stdout
-	r, w, _ := os.Pipe()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("Failed to create pipe: %v", err)
+	}
 	os.Stdout = w
 	
 	// Initialize logging
