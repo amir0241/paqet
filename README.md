@@ -45,6 +45,27 @@ KCP provides reliable, encrypted communication optimized for high-loss or unpred
   - **macOS:** Comes pre-installed with Xcode Command Line Tools. Install with `xcode-select --install`
   - **Windows:** Install Npcap. Download from [npcap.com](https://npcap.com/).
 
+### Building from Source
+
+If you prefer to build from source or need a custom build:
+
+```bash
+# Clone the repository
+git clone https://github.com/amir0241/paqet.git
+cd paqet
+
+# Build for your current platform
+make build
+
+# Or build for all platforms
+make build-all
+
+# Create release archives
+make release
+```
+
+For detailed build instructions, cross-compilation, and release creation, see [RELEASE.md](RELEASE.md).
+
 ### 1. Download a Release
 
 Download the pre-compiled binary for your client and server operating systems from the project's **Releases page**.
