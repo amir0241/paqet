@@ -84,9 +84,27 @@ func Infof(format string, args ...any)  { logf(Info, format, args...) }
 func Warnf(format string, args ...any)  { logf(Warn, format, args...) }
 func Errorf(format string, args ...any) { logf(Error, format, args...) }
 func Fatalf(format string, args ...any) {
-	logf(Fatal, format, args...)
-	// flush logs (optional: small sleep to let goroutine write)
-	time.Sleep(10 * time.Millisecond)
+	// For fatal errors, we must ensure the message is delivered
+	// Use blocking write instead of select with default
+	if minLevel != None && Fatal >= minLevel {
+		for _, arg := range args {
+			if err, ok := arg.(error); ok {
+				err = WErr(err)
+				if err == nil {
+					os.Exit(1)
+					return
+				}
+			}
+		}
+
+		now := time.Now().Format("2006-01-02 15:04:05.000")
+		line := fmt.Sprintf("%s [%s] %s\n", now, Fatal.String(), fmt.Sprintf(format, args...))
+		
+		// Blocking write to ensure fatal message is always sent
+		logCh <- line
+		// Give the logger goroutine time to flush
+		time.Sleep(50 * time.Millisecond)
+	}
 	os.Exit(1)
 }
 
