@@ -102,18 +102,22 @@ darwin:
 
 windows:
 	@echo "Building for Windows..."
-	@if [ "$(shell uname)" != "MINGW"* ] && [ "$(shell uname)" != "MSYS"* ] && [ "$(shell uname)" != "CYGWIN"* ]; then \
-		echo "Warning: Cross-compiling to Windows with CGO is complex."; \
-		echo "Skipping Windows build. Please build on Windows or use GitHub Actions for best results."; \
-	else \
-		mkdir -p $(BUILD_DIR); \
-		echo "Building Windows amd64..."; \
-		CGO_ENABLED=1 GOOS=windows GOARCH=amd64 go build -v -a -trimpath \
-			-gcflags "$(GCFLAGS)" \
-			-ldflags "$(LDFLAGS)" \
-			-o $(BUILD_DIR)/$(BINARY_NAME)_windows_amd64.exe ./cmd/main.go; \
-		echo "Windows builds complete"; \
-	fi
+	@uname_out=$$(uname); \
+	case "$$uname_out" in \
+		MINGW*|MSYS*|CYGWIN*) \
+			mkdir -p $(BUILD_DIR); \
+			echo "Building Windows amd64..."; \
+			CGO_ENABLED=1 GOOS=windows GOARCH=amd64 go build -v -a -trimpath \
+				-gcflags "$(GCFLAGS)" \
+				-ldflags "$(LDFLAGS)" \
+				-o $(BUILD_DIR)/$(BINARY_NAME)_windows_amd64.exe ./cmd/main.go; \
+			echo "Windows builds complete"; \
+			;; \
+		*) \
+			echo "Warning: Cross-compiling to Windows with CGO is complex."; \
+			echo "Skipping Windows build. Please build on Windows or use GitHub Actions for best results."; \
+			;; \
+	esac
 
 build-all: linux darwin windows
 	@echo "All requested platform builds complete"
