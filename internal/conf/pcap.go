@@ -16,13 +16,17 @@ type PCAP struct {
 func (p *PCAP) setDefaults(role string) {
 	if p.Sockbuf == 0 {
 		if role == "server" {
-			p.Sockbuf = 32 * 1024 * 1024 // Increased from 8MB to 32MB for high traffic
+			p.Sockbuf = 64 * 1024 * 1024 // Increased to 64MB for very high traffic (600+ Mbps)
 		} else {
-			p.Sockbuf = 16 * 1024 * 1024 // Increased from 4MB to 16MB for high traffic
+			p.Sockbuf = 16 * 1024 * 1024 // 16MB for client (adequate for typical usage)
 		}
 	}
 	if p.SendQueueSize == 0 {
-		p.SendQueueSize = 10000 // Increased from 1000 to 10000 for high traffic
+		if role == "server" {
+			p.SendQueueSize = 20000 // Increased to 20000 for server handling 600+ Mbps
+		} else {
+			p.SendQueueSize = 10000 // 10000 for client
+		}
 	}
 	if p.MaxRetries == 0 {
 		p.MaxRetries = 3

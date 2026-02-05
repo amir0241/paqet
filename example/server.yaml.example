@@ -32,10 +32,10 @@ network:
     local_flag: ["PA"]                       # Local TCP flags (Push+Ack default)
 
   # PCAP settings (optional - will use defaults)
-  # These defaults are optimized for high traffic (>100Mbps)
+  # These defaults are optimized for very high traffic (600+ Mbps)
   # pcap:
-    # sockbuf: 33554432                        # 32MB buffer (default for server, optimized for high throughput)
-    # send_queue_size: 10000                   # Send queue size (default: 10000, increased for high traffic)
+    # sockbuf: 67108864                        # 64MB buffer (default for server, optimized for 600+ Mbps throughput)
+    # send_queue_size: 20000                   # Send queue size (default: 20000, increased for very high traffic)
     # max_retries: 3                           # Max retry attempts on write failure (default: 3)
     # initial_backoff_ms: 10                   # Initial retry backoff in ms (default: 10ms)
     # max_backoff_ms: 1000                     # Maximum retry backoff in ms (default: 1000ms)
@@ -45,8 +45,8 @@ transport:
   protocol: "kcp"  # Transport protocol (currently only "kcp" supported)
   conn: 1          # Number of connections (1-256, default: 1)
   
-  # tcpbuf: 32768  # TCP buffer size in bytes (default: 32KB, optimized for high throughput)
-  # udpbuf: 16384  # UDP buffer size in bytes (default: 16KB, optimized for high throughput)
+  # tcpbuf: 65536  # TCP buffer size in bytes (default: 64KB for server, optimized for 600+ Mbps)
+  # udpbuf: 32768  # UDP buffer size in bytes (default: 32KB for server, optimized for 600+ Mbps)
 
   # KCP protocol settings
   kcp:
@@ -80,16 +80,16 @@ transport:
                               # Setting true reduces latency but increases bandwidth usage
 
     # mtu: 1350              # Maximum transmission unit (50-1500)
-    # rcvwnd: 4096           # Receive window size (default: 4096 for server, increased for high throughput)
-    # sndwnd: 4096           # Send window size (default: 4096 for server, increased for high throughput)
+    # rcvwnd: 8192           # Receive window size (default: 8192 for server, optimized for 600+ Mbps)
+    # sndwnd: 8192           # Send window size (default: 8192 for server, optimized for 600+ Mbps)
 
     # Encryption settings  
     # block: "aes"                    # Encryption: aes, aes-128, aes-128-gcm, aes-192, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, xor, sm4, none.
     key: "your-secret-key-here"       # CHANGE ME: Secret key (must match client)
 
-    # Buffer settings (optional - defaults optimized for high throughput)
-    # smuxbuf: 16777216      # 16MB SMUX buffer (default, increased for high throughput)
-    # streambuf: 8388608     # 8MB stream buffer (default, increased for high throughput)
+    # Buffer settings (optional - defaults optimized for very high throughput)
+    # smuxbuf: 33554432      # 32MB SMUX buffer (default for server, optimized for 600+ Mbps)
+    # streambuf: 16777216    # 16MB stream buffer (default for server, optimized for 600+ Mbps)
 
 # Optional Forward Error Correction (FEC) - currently disabled
 # Use these only if you need FEC for very lossy networks:
