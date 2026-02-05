@@ -32,7 +32,7 @@ network:
     local_flag: ["PA"]                       # Local TCP flags (Push+Ack default)
 
   # PCAP settings (optional - will use defaults)
-  # These defaults are optimized for very high traffic (600+ Mbps incoming, 250+ Mbps outgoing)
+  # These defaults are optimized for very high traffic (600+ Mbps incoming, 600+ Mbps outgoing)
   # pcap:
     # sockbuf: 67108864                        # 64MB buffer (default for server, optimized for 600+ Mbps throughput)
     # send_queue_size: 30000                   # Send queue size (default: 30000, increased for high outgoing traffic)
