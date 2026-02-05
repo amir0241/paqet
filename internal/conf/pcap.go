@@ -6,9 +6,10 @@ import (
 )
 
 type PCAP struct {
-	Sockbuf       int `yaml:"sockbuf"`
-	SendQueueSize int `yaml:"send_queue_size"`
-	MaxRetries    int `yaml:"max_retries"`
+	Sockbuf        int `yaml:"sockbuf"`
+	SendQueueSize  int `yaml:"send_queue_size"`
+	SendWorkers    int `yaml:"send_workers"`
+	MaxRetries     int `yaml:"max_retries"`
 	InitialBackoff int `yaml:"initial_backoff_ms"`
 	MaxBackoff     int `yaml:"max_backoff_ms"`
 }
@@ -16,13 +17,24 @@ type PCAP struct {
 func (p *PCAP) setDefaults(role string) {
 	if p.Sockbuf == 0 {
 		if role == "server" {
-			p.Sockbuf = 8 * 1024 * 1024
+			p.Sockbuf = 64 * 1024 * 1024 // Increased to 64MB for very high traffic (600+ Mbps)
 		} else {
-			p.Sockbuf = 4 * 1024 * 1024
+			p.Sockbuf = 16 * 1024 * 1024 // 16MB for client (adequate for typical usage)
 		}
 	}
 	if p.SendQueueSize == 0 {
-		p.SendQueueSize = 1000
+		if role == "server" {
+			p.SendQueueSize = 30000 // Increased to 30000 for server with high outgoing traffic
+		} else {
+			p.SendQueueSize = 10000 // 10000 for client
+		}
+	}
+	if p.SendWorkers == 0 {
+		if role == "server" {
+			p.SendWorkers = 4 // Multiple workers for parallel send processing on server
+		} else {
+			p.SendWorkers = 1 // Single worker sufficient for client
+		}
 	}
 	if p.MaxRetries == 0 {
 		p.MaxRetries = 3
@@ -53,6 +65,10 @@ func (p *PCAP) validate() []error {
 
 	if p.SendQueueSize < 1 || p.SendQueueSize > 100000 {
 		errors = append(errors, fmt.Errorf("PCAP send_queue_size must be between 1 and 100000"))
+	}
+
+	if p.SendWorkers < 1 || p.SendWorkers > 16 {
+		errors = append(errors, fmt.Errorf("PCAP send_workers must be between 1 and 16"))
 	}
 
 	if p.MaxRetries < 0 || p.MaxRetries > 10 {

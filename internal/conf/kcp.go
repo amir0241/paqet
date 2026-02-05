@@ -41,16 +41,16 @@ func (k *KCP) setDefaults(role string) {
 
 	if k.Rcvwnd == 0 {
 		if role == "server" {
-			k.Rcvwnd = 1024
+			k.Rcvwnd = 8192 // Increased to 8192 for very high throughput (600+ Mbps)
 		} else {
-			k.Rcvwnd = 512
+			k.Rcvwnd = 2048 // 2048 for client
 		}
 	}
 	if k.Sndwnd == 0 {
 		if role == "server" {
-			k.Sndwnd = 1024
+			k.Sndwnd = 8192 // Increased to 8192 for very high throughput (600+ Mbps)
 		} else {
-			k.Sndwnd = 512
+			k.Sndwnd = 2048 // 2048 for client
 		}
 	}
 
@@ -66,10 +66,18 @@ func (k *KCP) setDefaults(role string) {
 	}
 
 	if k.Smuxbuf == 0 {
-		k.Smuxbuf = 4 * 1024 * 1024
+		if role == "server" {
+			k.Smuxbuf = 32 * 1024 * 1024 // Increased to 32MB for server handling 600+ Mbps
+		} else {
+			k.Smuxbuf = 16 * 1024 * 1024 // 16MB for client
+		}
 	}
 	if k.Streambuf == 0 {
-		k.Streambuf = 2 * 1024 * 1024
+		if role == "server" {
+			k.Streambuf = 16 * 1024 * 1024 // Increased to 16MB for server handling 600+ Mbps
+		} else {
+			k.Streambuf = 8 * 1024 * 1024 // 8MB for client
+		}
 	}
 }
 

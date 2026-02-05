@@ -19,13 +19,21 @@ func (t *Transport) setDefaults(role string) {
 	}
 
 	if t.TCPBuf == 0 {
-		t.TCPBuf = 8 * 1024
+		if role == "server" {
+			t.TCPBuf = 64 * 1024 // Increased to 64KB for server handling 600+ Mbps
+		} else {
+			t.TCPBuf = 32 * 1024 // 32KB for client
+		}
 	}
 	if t.TCPBuf < 4*1024 {
 		t.TCPBuf = 4 * 1024
 	}
 	if t.UDPBuf == 0 {
-		t.UDPBuf = 4 * 1024
+		if role == "server" {
+			t.UDPBuf = 32 * 1024 // Increased to 32KB for server handling 600+ Mbps
+		} else {
+			t.UDPBuf = 16 * 1024 // 16KB for client
+		}
 	}
 	if t.UDPBuf < 2*1024 {
 		t.UDPBuf = 2 * 1024
