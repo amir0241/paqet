@@ -41,16 +41,16 @@ func (k *KCP) setDefaults(role string) {
 
 	if k.Rcvwnd == 0 {
 		if role == "server" {
-			k.Rcvwnd = 1024
+			k.Rcvwnd = 4096 // Increased from 1024 to 4096 for high throughput
 		} else {
-			k.Rcvwnd = 512
+			k.Rcvwnd = 2048 // Increased from 512 to 2048 for high throughput
 		}
 	}
 	if k.Sndwnd == 0 {
 		if role == "server" {
-			k.Sndwnd = 1024
+			k.Sndwnd = 4096 // Increased from 1024 to 4096 for high throughput
 		} else {
-			k.Sndwnd = 512
+			k.Sndwnd = 2048 // Increased from 512 to 2048 for high throughput
 		}
 	}
 
@@ -66,10 +66,10 @@ func (k *KCP) setDefaults(role string) {
 	}
 
 	if k.Smuxbuf == 0 {
-		k.Smuxbuf = 4 * 1024 * 1024
+		k.Smuxbuf = 16 * 1024 * 1024 // Increased from 4MB to 16MB for high throughput
 	}
 	if k.Streambuf == 0 {
-		k.Streambuf = 2 * 1024 * 1024
+		k.Streambuf = 8 * 1024 * 1024 // Increased from 2MB to 8MB for high throughput
 	}
 }
 

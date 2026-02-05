@@ -38,9 +38,10 @@ network:
     remote_flag: ["PA"]                     # Remote TCP flags (Push+Ack default)
 
   # PCAP settings (optional - will use defaults)
+  # These defaults are optimized for high traffic (>100Mbps)
   # pcap:
-    # sockbuf: 4194304                        # 4MB buffer (default for client)
-    # send_queue_size: 1000                   # Send queue size (default: 1000)
+    # sockbuf: 16777216                       # 16MB buffer (default for client, optimized for high throughput)
+    # send_queue_size: 10000                  # Send queue size (default: 10000, increased for high traffic)
     # max_retries: 3                          # Max retry attempts on write failure (default: 3)
     # initial_backoff_ms: 10                  # Initial retry backoff in ms (default: 10ms)
     # max_backoff_ms: 1000                    # Maximum retry backoff in ms (default: 1000ms)
@@ -54,8 +55,8 @@ transport:
   protocol: "kcp"  # Transport protocol (currently only "kcp" supported)
   conn: 1          # Number of connections (1-256, default: 1)
   
-  # tcpbuf: 8192   # TCP buffer size in bytes
-  # udpbuf: 4096   # UDP buffer size in bytes
+  # tcpbuf: 32768  # TCP buffer size in bytes (default: 32KB, optimized for high throughput)
+  # udpbuf: 16384  # UDP buffer size in bytes (default: 16KB, optimized for high throughput)
 
   # KCP protocol settings
   kcp:
@@ -89,16 +90,16 @@ transport:
                               # Setting true reduces latency but increases bandwidth usage
 
     # mtu: 1350              # Maximum transmission unit (50-1500)
-    # rcvwnd: 512            # Receive window size (default for client)  
-    # sndwnd: 512            # Send window size (default for client)
+    # rcvwnd: 2048           # Receive window size (default: 2048 for client, increased for high throughput)  
+    # sndwnd: 2048           # Send window size (default: 2048 for client, increased for high throughput)
 
     # Encryption settings
     # block: "aes"                    # Encryption: aes, aes-128, aes-128-gcm, aes-192, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, xor, sm4, none.
     key: "your-secret-key-here"       # CHANGE ME: Secret key (must match server)
 
-    # Buffer settings (optional)
-    # smuxbuf: 4194304       # 4MB SMUX buffer
-    # streambuf: 2097152     # 2MB stream buffer
+    # Buffer settings (optional - defaults optimized for high throughput)
+    # smuxbuf: 16777216      # 16MB SMUX buffer (default, increased for high throughput)
+    # streambuf: 8388608     # 8MB stream buffer (default, increased for high throughput)
 
 # Optional Forward Error Correction (FEC) - currently disabled
 # Use these only if you need FEC for very lossy networks:
