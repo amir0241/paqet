@@ -32,10 +32,11 @@ network:
     local_flag: ["PA"]                       # Local TCP flags (Push+Ack default)
 
   # PCAP settings (optional - will use defaults)
-  # These defaults are optimized for very high traffic (600+ Mbps)
+  # These defaults are optimized for very high traffic (600+ Mbps incoming, 250+ Mbps outgoing)
   # pcap:
     # sockbuf: 67108864                        # 64MB buffer (default for server, optimized for 600+ Mbps throughput)
-    # send_queue_size: 20000                   # Send queue size (default: 20000, increased for very high traffic)
+    # send_queue_size: 30000                   # Send queue size (default: 30000, increased for high outgoing traffic)
+    # send_workers: 4                          # Parallel send workers (default: 4, enables concurrent packet processing)
     # max_retries: 3                           # Max retry attempts on write failure (default: 3)
     # initial_backoff_ms: 10                   # Initial retry backoff in ms (default: 10ms)
     # max_backoff_ms: 1000                     # Maximum retry backoff in ms (default: 1000ms)

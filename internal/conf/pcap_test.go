@@ -16,6 +16,7 @@ func TestPCAPConfigValidation(t *testing.T) {
 			pcap: PCAP{
 				Sockbuf:        4 * 1024 * 1024,
 				SendQueueSize:  1000,
+				SendWorkers:    2,
 				MaxRetries:     3,
 				InitialBackoff: 10,
 				MaxBackoff:     1000,
@@ -93,9 +94,34 @@ func TestPCAPConfigValidation(t *testing.T) {
 			pcap: PCAP{
 				Sockbuf:        4 * 1024 * 1024,
 				SendQueueSize:  1000,
+				SendWorkers:    2,
 				MaxRetries:     3,
 				InitialBackoff: 10,
 				MaxBackoff:     100000,
+			},
+			wantErr: true,
+		},
+		{
+			name: "send workers too small",
+			pcap: PCAP{
+				Sockbuf:        4 * 1024 * 1024,
+				SendQueueSize:  1000,
+				SendWorkers:    0,
+				MaxRetries:     3,
+				InitialBackoff: 10,
+				MaxBackoff:     1000,
+			},
+			wantErr: true,
+		},
+		{
+			name: "send workers too large",
+			pcap: PCAP{
+				Sockbuf:        4 * 1024 * 1024,
+				SendQueueSize:  1000,
+				SendWorkers:    20,
+				MaxRetries:     3,
+				InitialBackoff: 10,
+				MaxBackoff:     1000,
 			},
 			wantErr: true,
 		},
@@ -115,21 +141,23 @@ func TestPCAPConfigValidation(t *testing.T) {
 // TestPCAPSetDefaults tests the PCAP default values
 func TestPCAPSetDefaults(t *testing.T) {
 	tests := []struct {
-		name               string
-		role               string
-		initial            PCAP
-		expectedSockbuf    int
-		expectedQueueSize  int
-		expectedRetries    int
+		name                string
+		role                string
+		initial             PCAP
+		expectedSockbuf     int
+		expectedQueueSize   int
+		expectedSendWorkers int
+		expectedRetries     int
 		expectedInitBackoff int
-		expectedMaxBackoff int
+		expectedMaxBackoff  int
 	}{
 		{
 			name:                "server defaults",
 			role:                "server",
 			initial:             PCAP{},
 			expectedSockbuf:     64 * 1024 * 1024,
-			expectedQueueSize:   20000,
+			expectedQueueSize:   30000,
+			expectedSendWorkers: 4,
 			expectedRetries:     3,
 			expectedInitBackoff: 10,
 			expectedMaxBackoff:  1000,
@@ -140,6 +168,7 @@ func TestPCAPSetDefaults(t *testing.T) {
 			initial:             PCAP{},
 			expectedSockbuf:     16 * 1024 * 1024,
 			expectedQueueSize:   10000,
+			expectedSendWorkers: 1,
 			expectedRetries:     3,
 			expectedInitBackoff: 10,
 			expectedMaxBackoff:  1000,
@@ -150,12 +179,14 @@ func TestPCAPSetDefaults(t *testing.T) {
 			initial: PCAP{
 				Sockbuf:        16 * 1024 * 1024,
 				SendQueueSize:  5000,
+				SendWorkers:    2,
 				MaxRetries:     5,
 				InitialBackoff: 50,
 				MaxBackoff:     5000,
 			},
 			expectedSockbuf:     16 * 1024 * 1024,
 			expectedQueueSize:   5000,
+			expectedSendWorkers: 2,
 			expectedRetries:     5,
 			expectedInitBackoff: 50,
 			expectedMaxBackoff:  5000,
@@ -172,6 +203,9 @@ func TestPCAPSetDefaults(t *testing.T) {
 			}
 			if pcap.SendQueueSize != tt.expectedQueueSize {
 				t.Errorf("SendQueueSize = %v, want %v", pcap.SendQueueSize, tt.expectedQueueSize)
+			}
+			if pcap.SendWorkers != tt.expectedSendWorkers {
+				t.Errorf("SendWorkers = %v, want %v", pcap.SendWorkers, tt.expectedSendWorkers)
 			}
 			if pcap.MaxRetries != tt.expectedRetries {
 				t.Errorf("MaxRetries = %v, want %v", pcap.MaxRetries, tt.expectedRetries)
