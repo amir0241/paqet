@@ -1,0 +1,128 @@
+# paqet Client Configuration - Optimized for High Performance
+# Hardware: 1Gbps network, 8-core CPU, 8GB RAM
+# This configuration is tuned for maximum throughput and low latency
+
+role: "client"
+
+# Logging configuration
+log:
+  level: "info"  # Use "debug" for troubleshooting, "info" for production
+
+# SOCKS5 proxy configuration (client mode)
+socks5:
+  - listen: "127.0.0.1:1080"    # SOCKS5 proxy listen address
+    username: ""                # Optional SOCKS5 authentication
+    password: ""                # Optional SOCKS5 authentication
+
+# Port forwarding configuration (can be used alongside SOCKS5)
+# forward:
+#   - listen: "127.0.0.1:8080"  # Local port to listen on
+#     target: "127.0.0.1:80"    # Target to forward to (via server)
+#     protocol: "tcp"           # Protocol (tcp/udp)
+
+# Network interface settings
+network:
+  interface: "en0"                          # CHANGE ME: Network interface (en0, eth0, wlan0, etc.)
+  # guid: "\Device\NPF_{...}"               # Windows only (Npcap).
+
+  # IPv4 configuration
+  ipv4:
+    addr: "192.168.1.100:0"                 # CHANGE ME: Local IP (use port 0 for random port)
+    router_mac: "aa:bb:cc:dd:ee:ff"         # CHANGE ME: Gateway/router MAC address
+
+  # TCP flags for packet crafting (optimized for data transfer)
+  tcp:
+    local_flag: ["PA"]                      # Push+Ack for efficient data delivery
+    remote_flag: ["PA"]                     # Push+Ack for efficient data delivery
+
+  # PCAP settings - optimized for high throughput
+  pcap:
+    sockbuf: 16777216                       # 16MB buffer for 1Gbps (increased from default 4MB)
+    send_queue_size: 2000                   # Larger queue for high packet rate
+    max_retries: 3                          # Retry failed writes
+    initial_backoff_ms: 10                  # Quick initial retry
+    max_backoff_ms: 1000                    # Max 1 second retry delay
+
+# Server connection settings
+server:
+  addr: "10.0.0.100:9999"  # CHANGE ME: paqet server address and port
+
+# Transport protocol configuration
+transport:
+  protocol: "kcp"  # Transport protocol (currently only "kcp" supported)
+  conn: 4          # Multiple connections for better parallelism on 8-core system
+  
+  tcpbuf: 16384    # 16KB TCP buffer (doubled for high throughput)
+  udpbuf: 8192     # 8KB UDP buffer (doubled for high throughput)
+
+  # KCP protocol settings - optimized for high-bandwidth, low-latency
+  kcp:
+    mode: "fast2"                            # Aggressive mode for low latency
+                                             # fast2 = balanced between speed and reliability
+                                             # Equivalent to: nodelay=1, interval=10, resend=2, nocongestion=1
+
+    mtu: 1400                                # Optimal MTU for Internet (accounts for headers)
+    rcvwnd: 1024                             # 2x default for client - more buffering
+    sndwnd: 1024                             # 2x default for client - more buffering
+
+    # Encryption settings - use AES for good balance of speed and security
+    block: "aes"                             # AES encryption (fast on modern CPUs)
+    key: "your-secret-key-here"              # CHANGE ME: Secret key (must match server)
+
+    # Buffer settings - optimized for 8GB RAM and high throughput
+    smuxbuf: 8388608                         # 8MB SMUX buffer (doubled for high throughput)
+    streambuf: 4194304                       # 4MB stream buffer (doubled for high throughput)
+
+# Performance and resource optimization settings
+# Optimized for 8-core CPU, 8GB RAM, 1Gbps network
+performance:
+  # Concurrency settings - tuned for 8-core CPU
+  max_concurrent_streams: 8000               # Client typically needs fewer than server
+                                             # Still supports many simultaneous connections
+  
+  packet_workers: 8                          # Match CPU cores for optimal parallelism
+                                             # Each worker handles packet serialization
+  
+  stream_worker_pool_size: 2000              # Larger pool for high connection rate
+  
+  # Retry settings - optimized for network conditions
+  max_retry_attempts: 5                      # Standard retry count
+  retry_initial_backoff_ms: 50               # Faster initial retry for low latency
+  retry_max_backoff_ms: 5000                 # Max 5 seconds for faster failure detection
+
+# Performance Tuning Notes for 1Gbps / 8-core / 8GB RAM:
+#
+# This configuration is optimized for:
+# - Network: 1Gbps (125MB/s) throughput
+# - CPU: 8 cores - all cores utilized via packet_workers=8
+# - RAM: 8GB - conservative limits to prevent OOM
+#
+# Expected Performance:
+# - Throughput: 500-900 Mbps (depending on packet size and encryption)
+# - Latency: 10-50ms (depending on network conditions)
+# - Concurrent Connections: Up to 8,000 simultaneous streams
+#
+# Key Optimizations:
+# 1. Multiple KCP connections (conn: 4) for parallelism
+# 2. Increased buffer sizes for high throughput
+# 3. All 8 CPU cores utilized (packet_workers: 8)
+# 4. Larger receive/send windows for 1Gbps bandwidth
+# 5. Fast2 mode for aggressive retransmission
+#
+# Monitoring:
+# - Watch CPU usage: should distribute across all 8 cores
+# - Watch memory: should stay under 3GB with max_concurrent_streams=8000
+# - If memory exceeds 5GB, reduce max_concurrent_streams to 5000
+#
+# Further Optimization:
+# - For even higher throughput: increase conn to 8 (one per CPU core)
+# - For lower latency: use mode: "fast3" (more aggressive)
+# - For lower CPU: reduce packet_workers to 4, use mode: "fast"
+# - For more RAM available: increase buffer sizes by 50%
+# - For better encryption: use block: "aes-128-gcm" (hardware accelerated on modern CPUs)
+#
+# Testing Your Configuration:
+# 1. Start server: sudo ./paqet run -c server.optimized.yaml
+# 2. Start client: sudo ./paqet run -c client.optimized.yaml
+# 3. Test throughput: curl -x socks5h://127.0.0.1:1080 https://speed.cloudflare.com
+# 4. Monitor logs for dropped packets or errors

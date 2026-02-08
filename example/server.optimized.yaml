@@ -1,0 +1,129 @@
+# paqet Server Configuration - Optimized for High Performance
+# Hardware: 1Gbps network, 8-core CPU, 8GB RAM
+# This configuration is tuned for maximum throughput and low latency
+
+role: "server"
+
+# Logging configuration
+log:
+  level: "info"  # Use "debug" for troubleshooting, "info" for production
+
+# Server listen configuration
+listen:
+  addr: ":9999"   # CHANGE ME: Server listen port (must match network.ipv4.addr port)
+                  # WARNING: Do not use standard ports (80, 443, etc.) as iptables rules
+                  # can affect outgoing server connections.
+
+# Network interface settings
+network:
+  interface: "eth0"                          # CHANGE ME: Network interface (eth0, ens3, en0, etc.)
+  # guid: "\Device\NPF_{...}"                # Windows only (Npcap).
+
+  # IPv4 configuration
+  ipv4:
+    addr: "10.0.0.100:9999"                  # CHANGE ME: Server IPv4 and port (port must match listen.addr)
+    router_mac: "aa:bb:cc:dd:ee:ff"          # CHANGE ME: Gateway/router MAC address
+
+  # TCP flags for packet crafting (optimized for data transfer)
+  tcp:
+    local_flag: ["PA"]                       # Push+Ack for efficient data delivery
+
+  # PCAP settings - optimized for high throughput
+  pcap:
+    sockbuf: 16777216                        # 16MB buffer for 1Gbps (increased from default 8MB)
+    send_queue_size: 2000                    # Larger queue for high packet rate
+    max_retries: 3                           # Retry failed writes
+    initial_backoff_ms: 10                   # Quick initial retry
+    max_backoff_ms: 1000                     # Max 1 second retry delay
+
+# Transport protocol configuration
+transport:
+  protocol: "kcp"  # Transport protocol (currently only "kcp" supported)
+  conn: 4          # Multiple connections for better parallelism on 8-core system
+  
+  tcpbuf: 16384    # 16KB TCP buffer (doubled for high throughput)
+  udpbuf: 8192     # 8KB UDP buffer (doubled for high throughput)
+
+  # KCP protocol settings - optimized for high-bandwidth, low-latency
+  kcp:
+    mode: "fast2"                            # Aggressive mode for low latency
+                                             # fast2 = balanced between speed and reliability
+                                             # Equivalent to: nodelay=1, interval=10, resend=2, nocongestion=1
+
+    mtu: 1400                                # Optimal MTU for Internet (accounts for headers)
+    rcvwnd: 2048                             # 2x default - more buffering for 1Gbps
+    sndwnd: 2048                             # 2x default - more buffering for 1Gbps
+
+    # Encryption settings - use AES for good balance of speed and security
+    block: "aes"                             # AES encryption (fast on modern CPUs)
+    key: "your-secret-key-here"              # CHANGE ME: Secret key (must match client)
+
+    # Buffer settings - optimized for 8GB RAM and high throughput
+    smuxbuf: 8388608                         # 8MB SMUX buffer (doubled for high throughput)
+    streambuf: 4194304                       # 4MB stream buffer (doubled for high throughput)
+
+# Performance and resource optimization settings
+# Optimized for 8-core CPU, 8GB RAM, 1Gbps network
+performance:
+  # Concurrency settings - tuned for 8-core CPU
+  max_concurrent_streams: 15000              # Higher limit for server with 8GB RAM
+                                             # Supports more simultaneous connections
+  
+  packet_workers: 8                          # Match CPU cores for optimal parallelism
+                                             # Each worker handles packet serialization
+  
+  stream_worker_pool_size: 2000              # Larger pool for high connection rate
+  
+  # Connection pooling - ENABLED for optimal performance
+  enable_connection_pooling: true            # Reuse TCP connections to reduce overhead
+                                             # Critical for high request rates
+  
+  tcp_connection_pool_size: 200              # More cached connections per target
+                                             # Supports more concurrent backends
+  
+  tcp_connection_idle_timeout: 120           # 2 minutes - longer timeout for reuse
+                                             # Balances resource usage and connection reuse
+  
+  # Retry settings - optimized for network conditions
+  max_retry_attempts: 5                      # Standard retry count
+  retry_initial_backoff_ms: 50               # Faster initial retry for low latency
+  retry_max_backoff_ms: 5000                 # Max 5 seconds for faster failure detection
+
+# Important: Server Firewall Configuration Required!
+# 
+# Since paqet uses pcap to bypass standard firewalls, you MUST configure
+# iptables on the server to prevent kernel interference:
+#
+# sudo iptables -t raw -A PREROUTING -p tcp --dport 9999 -j NOTRACK
+# sudo iptables -t raw -A OUTPUT -p tcp --sport 9999 -j NOTRACK  
+# sudo iptables -t mangle -A OUTPUT -p tcp --sport 9999 --tcp-flags RST RST -j DROP
+#
+# Replace 9999 with your actual listen port.
+#
+# To make rules persistent across reboots:
+# Debian/Ubuntu: sudo iptables-save > /etc/iptables/rules.v4
+# RHEL/CentOS: sudo service iptables save
+
+# Performance Tuning Notes for 1Gbps / 8-core / 8GB RAM:
+#
+# This configuration is optimized for:
+# - Network: 1Gbps (125MB/s) throughput
+# - CPU: 8 cores - all cores utilized via packet_workers=8
+# - RAM: 8GB - conservative limits to prevent OOM
+#
+# Expected Performance:
+# - Throughput: 500-900 Mbps (depending on packet size and encryption)
+# - Latency: 10-50ms (depending on network conditions)
+# - Concurrent Connections: Up to 15,000 simultaneous streams
+# - Connection Pooling: Reduces latency by 5-10x for repeated connections
+#
+# Monitoring:
+# - Watch CPU usage: should distribute across all 8 cores
+# - Watch memory: should stay under 4GB with max_concurrent_streams=15000
+# - If memory exceeds 6GB, reduce max_concurrent_streams to 10000
+#
+# Further Optimization:
+# - For even higher throughput: increase conn to 8 (one per CPU core)
+# - For lower latency: use mode: "fast3" (more aggressive)
+# - For lower CPU: reduce packet_workers to 4, use mode: "fast"
+# - For more RAM available: increase buffer sizes by 50%

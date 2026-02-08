@@ -147,17 +147,42 @@ Attempt 5: 1600ms
 
 ## Performance Tuning Guide
 
-### For High Throughput
+### For High Throughput (1Gbps, 8-core CPU, 8GB RAM)
+
+Optimized for maximum throughput on high-bandwidth networks:
 
 ```yaml
 performance:
-  packet_workers: 8              # More workers for parallelism
-  max_concurrent_streams: 20000  # Higher limit
-  enable_connection_pooling: true
-  tcp_connection_pool_size: 200
+  packet_workers: 8                      # Match CPU cores
+  max_concurrent_streams: 15000          # Higher for servers, 8000 for clients
+  enable_connection_pooling: true        # Server only - critical for performance
+  tcp_connection_pool_size: 200          # More cached connections
+  tcp_connection_idle_timeout: 120       # Longer reuse window
+  retry_initial_backoff_ms: 50           # Faster retries
+
+transport:
+  conn: 4                                # Multiple connections for parallelism
+  tcpbuf: 16384                          # Larger buffers
+  udpbuf: 8192
+  kcp:
+    mode: "fast2"                        # Balanced speed/reliability
+    mtu: 1400
+    rcvwnd: 2048                         # Server: 2048, Client: 1024
+    sndwnd: 2048                         # Server: 2048, Client: 1024
+    smuxbuf: 8388608                     # 8MB
+    streambuf: 4194304                   # 4MB
+
+network:
+  pcap:
+    sockbuf: 16777216                    # 16MB buffer
+    send_queue_size: 2000
 ```
 
+**See `example/server.optimized.yaml` and `example/client.optimized.yaml` for complete configurations.**
+
 ### For Low Latency
+
+Optimized for minimal latency at the cost of some throughput:
 
 ```yaml
 performance:
@@ -165,9 +190,15 @@ performance:
   max_concurrent_streams: 1000   # Conservative limit
   retry_initial_backoff_ms: 50   # Faster retries
   enable_connection_pooling: false # No pooling overhead
+
+transport:
+  kcp:
+    mode: "fast3"                # Most aggressive mode
 ```
 
 ### For Resource-Constrained Systems
+
+Optimized for systems with limited CPU and RAM:
 
 ```yaml
 performance:
