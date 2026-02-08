@@ -225,7 +225,7 @@ func (p *ConnPool) cleanupIdleConns() {
 					}
 				default:
 					// No more connections to check
-					return
+					break
 				}
 			}
 		}

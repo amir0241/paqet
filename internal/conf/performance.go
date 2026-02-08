@@ -6,6 +6,11 @@ import (
 	"runtime"
 )
 
+const (
+	// MaxRecommendedConcurrentStreams is the warning threshold for concurrent streams
+	MaxRecommendedConcurrentStreams = 100000
+)
+
 // Performance configuration for production optimization
 type Performance struct {
 	// MaxConcurrentStreams limits the number of concurrent stream handlers
@@ -95,7 +100,7 @@ func (p *Performance) validate() []error {
 		errors = append(errors, fmt.Errorf("max_concurrent_streams must be >= 0 (0 means unlimited)"))
 	}
 	
-	if p.MaxConcurrentStreams > 100000 {
+	if p.MaxConcurrentStreams > MaxRecommendedConcurrentStreams {
 		flog.Warnf("max_concurrent_streams is very high (%d) - this may cause resource exhaustion", p.MaxConcurrentStreams)
 	}
 	
