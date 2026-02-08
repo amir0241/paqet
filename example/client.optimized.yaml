@@ -62,8 +62,8 @@ transport:
                                              # Equivalent to: nodelay=1, interval=10, resend=2, nocongestion=1
 
     mtu: 1400                                # Optimal MTU for Internet (accounts for headers)
-    rcvwnd: 1024                             # 2x default for client - more buffering
-    sndwnd: 1024                             # 2x default for client - more buffering
+    rcvwnd: 1024                             # 2x default (512) for client - more buffering
+    sndwnd: 1024                             # 2x default (512) for client - more buffering
 
     # Encryption settings - use AES for good balance of speed and security
     block: "aes"                             # AES encryption (fast on modern CPUs)
