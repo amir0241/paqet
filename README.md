@@ -232,6 +232,18 @@ paqet uses unified YAML configuration for client and server. The `role` field mu
 - [`example/client.yaml.example`](example/client.yaml.example) - Client configuration reference
 - [`example/server.yaml.example`](example/server.yaml.example) - Server configuration reference
 
+**For optimized configurations (1Gbps / 8-core / 8GB RAM):**
+
+- [`example/server.optimized.yaml`](example/server.optimized.yaml) - High-performance server configuration
+- [`example/client.optimized.yaml`](example/client.optimized.yaml) - High-performance client configuration
+- [`example/README.md`](example/README.md) - Detailed guide for using optimized configurations
+
+The optimized configurations include:
+- **Connection pooling enabled** for 5-10x faster repeated connections
+- **Multi-core packet processing** utilizing all CPU cores
+- **Increased buffers** for 1Gbps throughput
+- **Tuned KCP parameters** for low latency and high bandwidth
+
 ### Encryption Modes
 
 The `transport.kcp.block` parameter determines the encryption method.
