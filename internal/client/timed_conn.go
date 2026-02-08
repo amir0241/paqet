@@ -30,8 +30,7 @@ func newTimedConn(ctx context.Context, cfg *conf.Conf) (*timedConn, error) {
 }
 
 func (tc *timedConn) createConn() (tnet.Conn, error) {
-	netCfg := tc.cfg.Network
-	pConn, err := socket.New(tc.ctx, &netCfg)
+	pConn, err := socket.New(tc.ctx, &tc.cfg.Network)
 	if err != nil {
 		return nil, fmt.Errorf("could not create packet conn: %w", err)
 	}
