@@ -25,8 +25,22 @@ func newConn(qconn *quic.Conn) *Conn {
 	}
 }
 
+// newConnWithContext creates a Conn with a parent context for proper cancellation propagation
+func newConnWithContext(qconn *quic.Conn, parentCtx context.Context) *Conn {
+	ctx, cancel := context.WithCancel(parentCtx)
+	return &Conn{
+		connection: qconn,
+		ctx:        ctx,
+		cancel:     cancel,
+	}
+}
+
 func (c *Conn) OpenStrm() (tnet.Strm, error) {
-	stream, err := c.connection.OpenStreamSync(c.ctx)
+	// Add timeout to prevent indefinite blocking under high load
+	ctx, cancel := context.WithTimeout(c.ctx, 30*time.Second)
+	defer cancel()
+
+	stream, err := c.connection.OpenStreamSync(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -34,6 +48,7 @@ func (c *Conn) OpenStrm() (tnet.Strm, error) {
 }
 
 func (c *Conn) AcceptStrm() (tnet.Strm, error) {
+	// Use connection's context which will be cancelled on shutdown
 	stream, err := c.connection.AcceptStream(c.ctx)
 	if err != nil {
 		return nil, err
@@ -45,13 +60,25 @@ func (c *Conn) Ping(wait bool) error {
 	// QUIC has built-in keep-alive mechanism
 	// We can send a PING frame by trying to open and close a stream
 	if wait {
-		stream, err := c.connection.OpenStreamSync(c.ctx)
+		// Add timeout to prevent indefinite blocking
+		ctx, cancel := context.WithTimeout(c.ctx, 10*time.Second)
+		defer cancel()
+
+		stream, err := c.connection.OpenStreamSync(ctx)
 		if err != nil {
 			return err
 		}
 		return stream.Close()
 	}
-	// Non-blocking ping - just check if connection is still alive
+	// Non-blocking ping - check connection status
+	// Use our context to properly detect shutdown
+	select {
+	case <-c.ctx.Done():
+		return c.ctx.Err()
+	default:
+	}
+
+	// Also check the QUIC connection status
 	select {
 	case <-c.connection.Context().Done():
 		return c.connection.Context().Err()

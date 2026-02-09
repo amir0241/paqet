@@ -20,25 +20,25 @@ import (
 )
 
 type Server struct {
-	cfg              *conf.Conf
-	pConn            *socket.PacketConn
-	wg               sync.WaitGroup
-	streamSemaphore  chan struct{}       // Limits concurrent stream processing
-	connPools        map[string]*connpool.ConnPool
-	connPoolsMu      sync.RWMutex
+	cfg             *conf.Conf
+	pConn           *socket.PacketConn
+	wg              sync.WaitGroup
+	streamSemaphore chan struct{} // Limits concurrent stream processing
+	connPools       map[string]*connpool.ConnPool
+	connPoolsMu     sync.RWMutex
 }
 
 func New(cfg *conf.Conf) (*Server, error) {
 	s := &Server{
 		cfg: cfg,
 	}
-	
+
 	// Initialize semaphore for limiting concurrent streams
 	maxStreams := cfg.Performance.MaxConcurrentStreams
 	if maxStreams > 0 {
 		s.streamSemaphore = make(chan struct{}, maxStreams)
 	}
-	
+
 	// Initialize connection pools map if enabled
 	if cfg.Performance.EnableConnectionPooling {
 		s.connPools = make(map[string]*connpool.ConnPool)
@@ -52,31 +52,31 @@ func (s *Server) getConnPool(addr string) (*connpool.ConnPool, error) {
 	if !s.cfg.Performance.EnableConnectionPooling {
 		return nil, nil
 	}
-	
+
 	s.connPoolsMu.RLock()
 	pool, exists := s.connPools[addr]
 	s.connPoolsMu.RUnlock()
-	
+
 	if exists {
 		return pool, nil
 	}
-	
+
 	// Create new pool
 	s.connPoolsMu.Lock()
 	defer s.connPoolsMu.Unlock()
-	
+
 	// Double-check after acquiring write lock
 	pool, exists = s.connPools[addr]
 	if exists {
 		return pool, nil
 	}
-	
+
 	// Create connection factory
 	factory := func(ctx context.Context) (net.Conn, error) {
 		dialer := &net.Dialer{Timeout: 10 * time.Second}
 		return dialer.DialContext(ctx, "tcp", addr)
 	}
-	
+
 	pool, err := connpool.New(
 		s.cfg.Performance.TCPConnectionPoolSize,
 		time.Duration(s.cfg.Performance.TCPConnectionIdleTimeout)*time.Second,
@@ -85,7 +85,7 @@ func (s *Server) getConnPool(addr string) (*connpool.ConnPool, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	s.connPools[addr] = pool
 	return pool, nil
 }
@@ -119,18 +119,22 @@ func (s *Server) Start() error {
 		if err != nil {
 			return fmt.Errorf("could not start QUIC listener: %w", err)
 		}
+		// Set context on QUIC listener for proper cancellation
+		if quicListener, ok := listener.(interface{ SetContext(context.Context) }); ok {
+			quicListener.SetContext(ctx)
+		}
 	default:
 		return fmt.Errorf("unsupported transport protocol: %s", s.cfg.Transport.Protocol)
 	}
 	defer listener.Close()
-	
+
 	poolingStatus := "disabled"
 	if s.cfg.Performance.EnableConnectionPooling {
-		poolingStatus = fmt.Sprintf("enabled (pool size: %d, idle timeout: %ds)", 
-			s.cfg.Performance.TCPConnectionPoolSize, 
+		poolingStatus = fmt.Sprintf("enabled (pool size: %d, idle timeout: %ds)",
+			s.cfg.Performance.TCPConnectionPoolSize,
 			s.cfg.Performance.TCPConnectionIdleTimeout)
 	}
-	flog.Infof("Server started - listening for packets on :%d (protocol: %s, max concurrent streams: %d, connection pooling: %s)", 
+	flog.Infof("Server started - listening for packets on :%d (protocol: %s, max concurrent streams: %d, connection pooling: %s)",
 		s.cfg.Listen.Addr.Port,
 		s.cfg.Transport.Protocol,
 		s.cfg.Performance.MaxConcurrentStreams,
@@ -143,7 +147,7 @@ func (s *Server) Start() error {
 	}()
 
 	s.wg.Wait()
-	
+
 	// Close all connection pools
 	if s.cfg.Performance.EnableConnectionPooling {
 		s.connPoolsMu.Lock()
@@ -153,16 +157,14 @@ func (s *Server) Start() error {
 		}
 		s.connPoolsMu.Unlock()
 	}
-	
+
 	flog.Infof("Server shutdown completed")
 	return nil
 }
 
 func (s *Server) listen(ctx context.Context, listener tnet.Listener) {
-	go func() {
-		<-ctx.Done()
-		listener.Close()
-	}()
+	// Remove the goroutine that causes potential leak
+	// The listener's Accept will now handle context cancellation internally
 	for {
 		select {
 		case <-ctx.Done():
@@ -171,6 +173,13 @@ func (s *Server) listen(ctx context.Context, listener tnet.Listener) {
 		}
 		conn, err := listener.Accept()
 		if err != nil {
+			// Check if this is due to context cancellation
+			select {
+			case <-ctx.Done():
+				flog.Debugf("listener accept loop stopped due to context cancellation")
+				return
+			default:
+			}
 			flog.Errorf("failed to accept connection: %v", err)
 			continue
 		}

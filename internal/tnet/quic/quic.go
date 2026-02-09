@@ -21,6 +21,6 @@ func getQUICConfig(cfg *conf.QUIC) *quic.Config {
 		EnableDatagrams:                cfg.EnableDatagrams,
 		Allow0RTT:                      cfg.Enable0RTT,
 	}
-	
+
 	return config
 }
