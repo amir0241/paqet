@@ -63,25 +63,12 @@ func (s *Server) getConnPool(addr string) (*connpool.ConnPool, error) {
 		return nil, nil
 	}
 
-	s.connPoolsMu.RLock()
-	entry, exists := s.connPools[addr]
-	s.connPoolsMu.RUnlock()
-
-	if exists {
-		// Update last access time
-		s.connPoolsMu.Lock()
-		entry.lastAccess = time.Now()
-		s.connPoolsMu.Unlock()
-		return entry.pool, nil
-	}
-
-	// Create new pool
 	s.connPoolsMu.Lock()
 	defer s.connPoolsMu.Unlock()
-
-	// Double-check after acquiring write lock
-	entry, exists = s.connPools[addr]
+	
+	entry, exists := s.connPools[addr]
 	if exists {
+		// Update last access time while holding the lock
 		entry.lastAccess = time.Now()
 		return entry.pool, nil
 	}

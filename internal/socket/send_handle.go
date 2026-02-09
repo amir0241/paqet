@@ -239,7 +239,7 @@ func (h *SendHandle) Write(payload []byte, addr *net.UDPAddr) error {
 		// Queue is full - apply back-pressure and log warning
 		droppedCount := h.droppedPackets.Add(1)
 		// Log every 1000th dropped packet to avoid log spam
-		if droppedCount%1000 == 1 {
+		if droppedCount%1000 == 0 {
 			return fmt.Errorf("send queue full, packet dropped (total dropped: %d)", droppedCount)
 		}
 		return fmt.Errorf("send queue full, packet dropped")
@@ -354,17 +354,26 @@ func (h *SendHandle) executeWrite(req *sendRequest) error {
 }
 
 func (h *SendHandle) getClientTCPF(dstIP net.IP, dstPort uint16) conf.TCPF {
+	key := hash.IPAddr(dstIP, dstPort)
+	
+	// Fast path: read with RLock
 	h.tcpF.mu.RLock()
-	entry := h.tcpF.clientTCPF[hash.IPAddr(dstIP, dstPort)]
+	entry := h.tcpF.clientTCPF[key]
 	h.tcpF.mu.RUnlock()
 	
 	if entry != nil {
-		// Update last access time
+		// Update last access time with write lock
 		h.tcpF.mu.Lock()
-		entry.lastAccess = time.Now()
+		// Re-check entry still exists after acquiring write lock
+		if entry = h.tcpF.clientTCPF[key]; entry != nil {
+			entry.lastAccess = time.Now()
+			result := entry.iter.Next()
+			h.tcpF.mu.Unlock()
+			return result
+		}
 		h.tcpF.mu.Unlock()
-		return entry.iter.Next()
 	}
+	
 	return h.tcpF.tcpF.Next()
 }
 
@@ -410,11 +419,6 @@ func (h *SendHandle) cleanupClientTCPF() {
 				delete(h.tcpF.clientTCPF, key)
 			}
 			h.tcpF.mu.Unlock()
-			
-			if len(toDelete) > 0 {
-				// Log cleanup at debug level
-				_ = len(toDelete) // Avoid unused variable if logging is disabled
-			}
 		}
 	}
 }

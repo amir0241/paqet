@@ -227,10 +227,11 @@ func (p *ConnPool) cleanupIdleConns() {
 						toRequeue = append(toRequeue, pc)
 					}
 				default:
-					// No more connections to check
-					break
+					// No more connections to check, exit the loop
+					goto done
 				}
 			}
+		done:
 			
 			// Requeue valid connections in batch
 			for _, pc := range toRequeue {
