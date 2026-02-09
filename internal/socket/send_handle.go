@@ -349,7 +349,7 @@ func (h *SendHandle) getClientTCPF(dstIP net.IP, dstPort uint16) conf.TCPF {
 }
 
 func (h *SendHandle) setClientTCPF(addr net.Addr, f []conf.TCPF) {
-	// QUIC streams return nil for RemoteAddr(), so we skip setting client-specific TCPF
+	// QUIC streams return nil for RemoteAddr(), so we skip setting client-specific TCP flags
 	if addr == nil {
 		return
 	}
