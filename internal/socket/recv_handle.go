@@ -5,6 +5,7 @@ import (
 	"net"
 	"paqet/internal/conf"
 	"runtime"
+	"time"
 
 	"github.com/gopacket/gopacket"
 	"github.com/gopacket/gopacket/layers"
@@ -31,6 +32,11 @@ func NewRecvHandle(cfg *conf.Network) (*RecvHandle, error) {
 	filter := fmt.Sprintf("tcp and dst port %d", cfg.Port)
 	if err := handle.SetBPFFilter(filter); err != nil {
 		return nil, fmt.Errorf("failed to set BPF filter: %w", err)
+	}
+
+	// Set read timeout to prevent indefinite blocking
+	if err := handle.SetTimeout(5 * time.Second); err != nil {
+		return nil, fmt.Errorf("failed to set read timeout: %w", err)
 	}
 
 	return &RecvHandle{handle: handle}, nil

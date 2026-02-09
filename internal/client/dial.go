@@ -38,27 +38,34 @@ func (c *Client) newStrmWithRetry(attempt int) (tnet.Strm, error) {
 		maxAttempts = 5
 	}
 	
-	if attempt >= maxAttempts {
-		return nil, fmt.Errorf("failed to create stream after %d attempts", attempt)
+	// Use iterative approach instead of recursion to prevent stack overflow
+	for currentAttempt := attempt; currentAttempt < maxAttempts; currentAttempt++ {
+		conn, err := c.newConn()
+		if err != nil {
+			flog.Debugf("session creation failed (attempt %d/%d), retrying after backoff", currentAttempt+1, maxAttempts)
+			if currentAttempt < maxAttempts-1 {
+				backoff := c.calculateRetryBackoff(currentAttempt)
+				time.Sleep(backoff)
+				continue
+			}
+			return nil, fmt.Errorf("failed to create connection after %d attempts: %w", maxAttempts, err)
+		}
+		
+		strm, err := conn.OpenStrm()
+		if err != nil {
+			flog.Debugf("failed to open stream (attempt %d/%d), retrying: %v", currentAttempt+1, maxAttempts, err)
+			if currentAttempt < maxAttempts-1 {
+				backoff := c.calculateRetryBackoff(currentAttempt)
+				time.Sleep(backoff)
+				continue
+			}
+			return nil, fmt.Errorf("failed to open stream after %d attempts: %w", maxAttempts, err)
+		}
+		
+		return strm, nil
 	}
 	
-	conn, err := c.newConn()
-	if err != nil {
-		flog.Debugf("session creation failed (attempt %d/%d), retrying after backoff", attempt+1, maxAttempts)
-		backoff := c.calculateRetryBackoff(attempt)
-		time.Sleep(backoff)
-		return c.newStrmWithRetry(attempt + 1)
-	}
-	
-	strm, err := conn.OpenStrm()
-	if err != nil {
-		flog.Debugf("failed to open stream (attempt %d/%d), retrying: %v", attempt+1, maxAttempts, err)
-		backoff := c.calculateRetryBackoff(attempt)
-		time.Sleep(backoff)
-		return c.newStrmWithRetry(attempt + 1)
-	}
-	
-	return strm, nil
+	return nil, fmt.Errorf("failed to create stream after %d attempts", maxAttempts)
 }
 
 func (c *Client) calculateRetryBackoff(attempt int) time.Duration {

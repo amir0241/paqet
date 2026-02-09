@@ -24,13 +24,23 @@ type Server struct {
 	pConn           *socket.PacketConn
 	wg              sync.WaitGroup
 	streamSemaphore chan struct{} // Limits concurrent stream processing
-	connPools       map[string]*connpool.ConnPool
+	connPools       map[string]*connPoolEntry
 	connPoolsMu     sync.RWMutex
+	ctx             context.Context
+	cancel          context.CancelFunc
+}
+
+type connPoolEntry struct {
+	pool       *connpool.ConnPool
+	lastAccess time.Time
 }
 
 func New(cfg *conf.Conf) (*Server, error) {
+	ctx, cancel := context.WithCancel(context.Background())
 	s := &Server{
-		cfg: cfg,
+		cfg:    cfg,
+		ctx:    ctx,
+		cancel: cancel,
 	}
 
 	// Initialize semaphore for limiting concurrent streams
@@ -41,7 +51,7 @@ func New(cfg *conf.Conf) (*Server, error) {
 
 	// Initialize connection pools map if enabled
 	if cfg.Performance.EnableConnectionPooling {
-		s.connPools = make(map[string]*connpool.ConnPool)
+		s.connPools = make(map[string]*connPoolEntry)
 	}
 
 	return s, nil
@@ -53,22 +63,14 @@ func (s *Server) getConnPool(addr string) (*connpool.ConnPool, error) {
 		return nil, nil
 	}
 
-	s.connPoolsMu.RLock()
-	pool, exists := s.connPools[addr]
-	s.connPoolsMu.RUnlock()
-
-	if exists {
-		return pool, nil
-	}
-
-	// Create new pool
 	s.connPoolsMu.Lock()
 	defer s.connPoolsMu.Unlock()
-
-	// Double-check after acquiring write lock
-	pool, exists = s.connPools[addr]
+	
+	entry, exists := s.connPools[addr]
 	if exists {
-		return pool, nil
+		// Update last access time while holding the lock
+		entry.lastAccess = time.Now()
+		return entry.pool, nil
 	}
 
 	// Create connection factory
@@ -86,7 +88,10 @@ func (s *Server) getConnPool(addr string) (*connpool.ConnPool, error) {
 		return nil, err
 	}
 
-	s.connPools[addr] = pool
+	s.connPools[addr] = &connPoolEntry{
+		pool:       pool,
+		lastAccess: time.Now(),
+	}
 	return pool, nil
 }
 
@@ -133,6 +138,12 @@ func (s *Server) Start() error {
 		poolingStatus = fmt.Sprintf("enabled (pool size: %d, idle timeout: %ds)",
 			s.cfg.Performance.TCPConnectionPoolSize,
 			s.cfg.Performance.TCPConnectionIdleTimeout)
+		// Start periodic cleanup of unused connection pools
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+			s.cleanupConnPools(ctx)
+		}()
 	}
 	flog.Infof("Server started - listening for packets on :%d (protocol: %s, max concurrent streams: %d, connection pooling: %s)",
 		s.cfg.Listen.Addr.Port,
@@ -151,9 +162,9 @@ func (s *Server) Start() error {
 	// Close all connection pools
 	if s.cfg.Performance.EnableConnectionPooling {
 		s.connPoolsMu.Lock()
-		for addr, pool := range s.connPools {
+		for addr, entry := range s.connPools {
 			flog.Debugf("closing connection pool for %s", addr)
-			pool.Close()
+			entry.pool.Close()
 		}
 		s.connPoolsMu.Unlock()
 	}
@@ -191,5 +202,41 @@ func (s *Server) listen(ctx context.Context, listener tnet.Listener) {
 			defer conn.Close()
 			s.handleConn(ctx, conn)
 		}()
+	}
+}
+
+// cleanupConnPools periodically removes unused connection pools to prevent memory leaks
+func (s *Server) cleanupConnPools(ctx context.Context) {
+	ticker := time.NewTicker(10 * time.Minute)
+	defer ticker.Stop()
+	
+	// Pools idle for more than 30 minutes will be removed
+	const maxIdleTime = 30 * time.Minute
+	
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			s.connPoolsMu.Lock()
+			now := time.Now()
+			toDelete := make([]string, 0)
+			
+			for addr, entry := range s.connPools {
+				if now.Sub(entry.lastAccess) > maxIdleTime {
+					toDelete = append(toDelete, addr)
+					entry.pool.Close()
+				}
+			}
+			
+			for _, addr := range toDelete {
+				delete(s.connPools, addr)
+			}
+			s.connPoolsMu.Unlock()
+			
+			if len(toDelete) > 0 {
+				flog.Debugf("cleaned up %d unused connection pools", len(toDelete))
+			}
+		}
 	}
 }

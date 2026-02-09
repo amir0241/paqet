@@ -1,6 +1,7 @@
 package run
 
 import (
+	"fmt"
 	"log"
 	"paqet/internal/conf"
 	"paqet/internal/flog"
@@ -24,7 +25,9 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("Failed to load configuration: %v", err)
 		}
-		initialize(cfg)
+		if err := initialize(cfg); err != nil {
+			log.Fatalf("Failed to initialize: %v", err)
+		}
 
 		switch cfg.Role {
 		case "client":
@@ -39,7 +42,10 @@ var Cmd = &cobra.Command{
 	},
 }
 
-func initialize(cfg *conf.Conf) {
+func initialize(cfg *conf.Conf) error {
 	flog.SetLevel(cfg.Log.Level)
-	buffer.Initialize(cfg.Transport.TCPBuf, cfg.Transport.UDPBuf)
+	if err := buffer.Initialize(cfg.Transport.TCPBuf, cfg.Transport.UDPBuf); err != nil {
+		return fmt.Errorf("failed to initialize buffers: %w", err)
+	}
+	return nil
 }
