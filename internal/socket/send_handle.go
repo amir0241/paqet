@@ -65,7 +65,7 @@ type SendHandle struct {
 }
 
 func NewSendHandle(cfg *conf.Network) (*SendHandle, error) {
-	handle, err := newHandle(cfg)
+	handle, err := newHandle(cfg, pcap.BlockForever)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open pcap handle: %w", err)
 	}
@@ -143,7 +143,7 @@ func NewSendHandle(cfg *conf.Network) (*SendHandle, error) {
 	if cfg.Performance != nil && cfg.Performance.PacketWorkers > 0 {
 		numWorkers = cfg.Performance.PacketWorkers
 	}
-	
+
 	for i := 0; i < numWorkers; i++ {
 		sh.wg.Add(1)
 		go sh.processQueue()
@@ -267,7 +267,7 @@ func (h *SendHandle) processQueue() {
 				// Retry with exponential backoff
 				req.retries++
 				backoff := h.calculateBackoff(req.retries)
-				
+
 				select {
 				case <-time.After(backoff):
 					// Requeue for retry
@@ -355,12 +355,12 @@ func (h *SendHandle) executeWrite(req *sendRequest) error {
 
 func (h *SendHandle) getClientTCPF(dstIP net.IP, dstPort uint16) conf.TCPF {
 	key := hash.IPAddr(dstIP, dstPort)
-	
+
 	// Fast path: read with RLock
 	h.tcpF.mu.RLock()
 	entry := h.tcpF.clientTCPF[key]
 	h.tcpF.mu.RUnlock()
-	
+
 	if entry != nil {
 		// Update last access time with write lock
 		h.tcpF.mu.Lock()
@@ -373,7 +373,7 @@ func (h *SendHandle) getClientTCPF(dstIP net.IP, dstPort uint16) conf.TCPF {
 		}
 		h.tcpF.mu.Unlock()
 	}
-	
+
 	return h.tcpF.tcpF.Next()
 }
 
@@ -396,10 +396,10 @@ func (h *SendHandle) cleanupClientTCPF() {
 	defer h.wg.Done()
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
-	
+
 	// Entries idle for more than 10 minutes will be removed
 	const maxIdleTime = 10 * time.Minute
-	
+
 	for {
 		select {
 		case <-h.ctx.Done():
@@ -408,13 +408,13 @@ func (h *SendHandle) cleanupClientTCPF() {
 			h.tcpF.mu.Lock()
 			now := time.Now()
 			toDelete := make([]uint64, 0)
-			
+
 			for key, entry := range h.tcpF.clientTCPF {
 				if now.Sub(entry.lastAccess) > maxIdleTime {
 					toDelete = append(toDelete, key)
 				}
 			}
-			
+
 			for _, key := range toDelete {
 				delete(h.tcpF.clientTCPF, key)
 			}
