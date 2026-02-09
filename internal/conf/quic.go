@@ -139,6 +139,9 @@ func (q *QUIC) validate() []error {
 	return errors
 }
 
+// Certificate validity period for self-signed certificates
+const certValidityDays = 365
+
 // GenerateTLSConfig generates a TLS configuration for QUIC
 func (q *QUIC) GenerateTLSConfig(role string) (*tls.Config, error) {
 	if role == "server" {
@@ -178,7 +181,7 @@ func generateSelfSignedCert() (tls.Certificate, error) {
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(1),
 		NotBefore:    time.Now(),
-		NotAfter:     time.Now().Add(365 * 24 * time.Hour),
+		NotAfter:     time.Now().Add(certValidityDays * 24 * time.Hour),
 		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 	}

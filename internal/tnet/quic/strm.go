@@ -48,7 +48,8 @@ func (s *Strm) SetWriteDeadline(t time.Time) error {
 }
 
 func (s *Strm) CloseWrite() error {
-	return s.stream.Close()
+	s.stream.CancelWrite(0)
+	return nil
 }
 
 func (s *Strm) CloseRead() error {

@@ -74,17 +74,19 @@ func (c *Conn) RemoteAddr() net.Addr {
 }
 
 func (c *Conn) SetDeadline(t time.Time) error {
-	// QUIC connections don't have a SetDeadline method at the connection level
-	// Deadlines are set per-stream
+	// QUIC connections don't support connection-level deadlines
+	// Deadlines must be set per-stream using stream.SetDeadline()
 	return nil
 }
 
 func (c *Conn) SetReadDeadline(t time.Time) error {
-	// QUIC connections don't have a SetReadDeadline method at the connection level
+	// QUIC connections don't support connection-level deadlines
+	// Deadlines must be set per-stream using stream.SetReadDeadline()
 	return nil
 }
 
 func (c *Conn) SetWriteDeadline(t time.Time) error {
-	// QUIC connections don't have a SetWriteDeadline method at the connection level
+	// QUIC connections don't support connection-level deadlines
+	// Deadlines must be set per-stream using stream.SetWriteDeadline()
 	return nil
 }
