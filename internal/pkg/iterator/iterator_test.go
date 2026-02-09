@@ -30,7 +30,7 @@ func TestIterator_NextWithItems(t *testing.T) {
 	}
 	
 	// Test round-robin behavior
-	expected := []int{2, 3, 1, 2} // First call increments to 1, so starts at index 1
+	expected := []int{2, 3, 1, 2} // First call to Next() increments index to 1 and returns Items[1]
 	for i, exp := range expected {
 		result := it.Next()
 		if result != exp {
@@ -73,7 +73,7 @@ func TestIterator_NextWithPowerOfTwo(t *testing.T) {
 		Items: []int{1, 2, 3, 4}, // length is 4 (power of 2)
 	}
 	
-	expected := []int{2, 3, 4, 1} // Should cycle through items
+	expected := []int{2, 3, 4, 1} // Tests bitwise optimization path (n&(n-1) == 0) for power-of-two lengths
 	for i, exp := range expected {
 		result := it.Next()
 		if result != exp {
