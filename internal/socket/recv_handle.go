@@ -17,7 +17,8 @@ type RecvHandle struct {
 }
 
 func NewRecvHandle(cfg *conf.Network) (*RecvHandle, error) {
-	handle, err := newHandle(cfg)
+	// Set read timeout to prevent indefinite blocking
+	handle, err := newHandle(cfg, 5*time.Second)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open pcap handle: %w", err)
 	}
@@ -32,11 +33,6 @@ func NewRecvHandle(cfg *conf.Network) (*RecvHandle, error) {
 	filter := fmt.Sprintf("tcp and dst port %d", cfg.Port)
 	if err := handle.SetBPFFilter(filter); err != nil {
 		return nil, fmt.Errorf("failed to set BPF filter: %w", err)
-	}
-
-	// Set read timeout to prevent indefinite blocking
-	if err := handle.SetTimeout(5 * time.Second); err != nil {
-		return nil, fmt.Errorf("failed to set read timeout: %w", err)
 	}
 
 	return &RecvHandle{handle: handle}, nil

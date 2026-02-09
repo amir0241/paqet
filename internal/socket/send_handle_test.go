@@ -40,7 +40,7 @@ func TestSendQueueBackpressure(t *testing.T) {
 
 	// Test that we can send up to queue size
 	addr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 8080}
-	
+
 	// Fill the queue with goroutines that will block waiting for results
 	errChan := make(chan error, cfg.PCAP.SendQueueSize+1)
 	for i := 0; i < cfg.PCAP.SendQueueSize; i++ {
