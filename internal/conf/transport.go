@@ -19,14 +19,23 @@ func (t *Transport) setDefaults(role string) {
 		t.Conn = 1
 	}
 
+	// Increase default TCP buffer size for better high-bandwidth performance
 	if t.TCPBuf == 0 {
-		t.TCPBuf = 8 * 1024
+		if role == "server" {
+			t.TCPBuf = 64 * 1024 // 64KB for servers under high load
+		} else {
+			t.TCPBuf = 32 * 1024 // 32KB for clients
+		}
 	}
 	if t.TCPBuf < 4*1024 {
 		t.TCPBuf = 4 * 1024
 	}
 	if t.UDPBuf == 0 {
-		t.UDPBuf = 4 * 1024
+		if role == "server" {
+			t.UDPBuf = 64 * 1024 // 64KB for servers
+		} else {
+			t.UDPBuf = 32 * 1024 // 32KB for clients
+		}
 	}
 	if t.UDPBuf < 2*1024 {
 		t.UDPBuf = 2 * 1024
