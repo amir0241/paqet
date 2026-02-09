@@ -2,6 +2,10 @@
 
 paqet now supports QUIC as an alternative transport protocol to KCP. QUIC is optimized for high bandwidth scenarios and can handle many concurrent connections efficiently.
 
+> **⚠️ For High Connection Pressure Scenarios**
+>
+> If you're experiencing issues under high load (thousands of concurrent connections), see [`HIGH-LOAD-QUIC.md`](HIGH-LOAD-QUIC.md) for critical bug fixes, optimized configurations, and system tuning recommendations.
+
 ## Why QUIC?
 
 QUIC (Quick UDP Internet Connections) offers several advantages:

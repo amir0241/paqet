@@ -247,6 +247,8 @@ paqet supports two transport protocols:
 
 **See [`docs/QUIC.md`](docs/QUIC.md) for detailed QUIC documentation, performance tuning, and migration guide.**
 
+**For high connection pressure scenarios, see [`docs/HIGH-LOAD-QUIC.md`](docs/HIGH-LOAD-QUIC.md) for bug fixes, optimized configurations, and system tuning.**
+
 ### Encryption Modes (KCP Only)
 
 The `transport.kcp.block` parameter determines the encryption method.
