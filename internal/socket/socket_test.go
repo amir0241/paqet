@@ -50,6 +50,12 @@ func TestPacketConnLocalAddr(t *testing.T) {
 			wantPort: 7777,
 			wantIP:   net.IPv4zero,
 		},
+		{
+			name:     "Nil config - fallback",
+			cfg:      nil,
+			wantPort: 0,
+			wantIP:   net.IPv4zero,
+		},
 	}
 
 	for _, tt := range tests {

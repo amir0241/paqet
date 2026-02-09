@@ -121,24 +121,31 @@ func (c *PacketConn) Close() error {
 
 func (c *PacketConn) LocalAddr() net.Addr {
 	// Return IPv4 address if configured, otherwise IPv6
-	if c.cfg.IPv4.Addr != nil {
+	if c.cfg != nil {
+		if c.cfg.IPv4.Addr != nil {
+			return &net.UDPAddr{
+				IP:   append([]byte(nil), c.cfg.IPv4.Addr.IP...),
+				Port: c.cfg.IPv4.Addr.Port,
+				Zone: c.cfg.IPv4.Addr.Zone,
+			}
+		}
+		if c.cfg.IPv6.Addr != nil {
+			return &net.UDPAddr{
+				IP:   append([]byte(nil), c.cfg.IPv6.Addr.IP...),
+				Port: c.cfg.IPv6.Addr.Port,
+				Zone: c.cfg.IPv6.Addr.Zone,
+			}
+		}
+		// Fallback: return address with port from config
 		return &net.UDPAddr{
-			IP:   append([]byte(nil), c.cfg.IPv4.Addr.IP...),
-			Port: c.cfg.IPv4.Addr.Port,
-			Zone: c.cfg.IPv4.Addr.Zone,
+			IP:   net.IPv4zero,
+			Port: c.cfg.Port,
 		}
 	}
-	if c.cfg.IPv6.Addr != nil {
-		return &net.UDPAddr{
-			IP:   append([]byte(nil), c.cfg.IPv6.Addr.IP...),
-			Port: c.cfg.IPv6.Addr.Port,
-			Zone: c.cfg.IPv6.Addr.Zone,
-		}
-	}
-	// Fallback: return address with port from config
+	// If cfg is nil, return a default address
 	return &net.UDPAddr{
 		IP:   net.IPv4zero,
-		Port: c.cfg.Port,
+		Port: 0,
 	}
 }
 
