@@ -21,9 +21,15 @@ import (
 )
 
 type TCPF struct {
-	tcpF       iterator.Iterator[conf.TCPF]
-	clientTCPF map[uint64]*iterator.Iterator[conf.TCPF]
-	mu         sync.RWMutex
+	tcpF         iterator.Iterator[conf.TCPF]
+	clientTCPF   map[uint64]*tcpfEntry
+	mu           sync.RWMutex
+	cleanupTimer *time.Timer
+}
+
+type tcpfEntry struct {
+	iter       *iterator.Iterator[conf.TCPF]
+	lastAccess time.Time
 }
 
 type sendRequest struct {
@@ -91,7 +97,7 @@ func NewSendHandle(cfg *conf.Network) (*SendHandle, error) {
 		srcPort:    uint16(cfg.Port),
 		synOptions: synOptions,
 		ackOptions: ackOptions,
-		tcpF:       TCPF{tcpF: iterator.Iterator[conf.TCPF]{Items: cfg.TCP.LF}, clientTCPF: make(map[uint64]*iterator.Iterator[conf.TCPF])},
+		tcpF:       TCPF{tcpF: iterator.Iterator[conf.TCPF]{Items: cfg.TCP.LF}, clientTCPF: make(map[uint64]*tcpfEntry)},
 		time:       uint32(time.Now().UnixNano() / int64(time.Millisecond)),
 		cfg:        cfg,
 		sendQueue:  make(chan *sendRequest, cfg.PCAP.SendQueueSize),
@@ -142,6 +148,10 @@ func NewSendHandle(cfg *conf.Network) (*SendHandle, error) {
 		sh.wg.Add(1)
 		go sh.processQueue()
 	}
+
+	// Start periodic cleanup of clientTCPF map to prevent unbounded growth
+	sh.wg.Add(1)
+	go sh.cleanupClientTCPF()
 
 	return sh, nil
 }
@@ -226,8 +236,12 @@ func (h *SendHandle) Write(payload []byte, addr *net.UDPAddr) error {
 	case <-h.ctx.Done():
 		return h.ctx.Err()
 	default:
-		// Queue is full - apply back-pressure
-		h.droppedPackets.Add(1)
+		// Queue is full - apply back-pressure and log warning
+		droppedCount := h.droppedPackets.Add(1)
+		// Log every 1000th dropped packet to avoid log spam
+		if droppedCount%1000 == 1 {
+			return fmt.Errorf("send queue full, packet dropped (total dropped: %d)", droppedCount)
+		}
 		return fmt.Errorf("send queue full, packet dropped")
 	}
 
@@ -341,9 +355,15 @@ func (h *SendHandle) executeWrite(req *sendRequest) error {
 
 func (h *SendHandle) getClientTCPF(dstIP net.IP, dstPort uint16) conf.TCPF {
 	h.tcpF.mu.RLock()
-	defer h.tcpF.mu.RUnlock()
-	if ff := h.tcpF.clientTCPF[hash.IPAddr(dstIP, dstPort)]; ff != nil {
-		return ff.Next()
+	entry := h.tcpF.clientTCPF[hash.IPAddr(dstIP, dstPort)]
+	h.tcpF.mu.RUnlock()
+	
+	if entry != nil {
+		// Update last access time
+		h.tcpF.mu.Lock()
+		entry.lastAccess = time.Now()
+		h.tcpF.mu.Unlock()
+		return entry.iter.Next()
 	}
 	return h.tcpF.tcpF.Next()
 }
@@ -355,8 +375,48 @@ func (h *SendHandle) setClientTCPF(addr net.Addr, f []conf.TCPF) {
 	}
 	a := *addr.(*net.UDPAddr)
 	h.tcpF.mu.Lock()
-	h.tcpF.clientTCPF[hash.IPAddr(a.IP, uint16(a.Port))] = &iterator.Iterator[conf.TCPF]{Items: f}
+	h.tcpF.clientTCPF[hash.IPAddr(a.IP, uint16(a.Port))] = &tcpfEntry{
+		iter:       &iterator.Iterator[conf.TCPF]{Items: f},
+		lastAccess: time.Now(),
+	}
 	h.tcpF.mu.Unlock()
+}
+
+// cleanupClientTCPF periodically removes stale clientTCPF entries to prevent unbounded memory growth
+func (h *SendHandle) cleanupClientTCPF() {
+	defer h.wg.Done()
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+	
+	// Entries idle for more than 10 minutes will be removed
+	const maxIdleTime = 10 * time.Minute
+	
+	for {
+		select {
+		case <-h.ctx.Done():
+			return
+		case <-ticker.C:
+			h.tcpF.mu.Lock()
+			now := time.Now()
+			toDelete := make([]uint64, 0)
+			
+			for key, entry := range h.tcpF.clientTCPF {
+				if now.Sub(entry.lastAccess) > maxIdleTime {
+					toDelete = append(toDelete, key)
+				}
+			}
+			
+			for _, key := range toDelete {
+				delete(h.tcpF.clientTCPF, key)
+			}
+			h.tcpF.mu.Unlock()
+			
+			if len(toDelete) > 0 {
+				// Log cleanup at debug level
+				_ = len(toDelete) // Avoid unused variable if logging is disabled
+			}
+		}
+	}
 }
 
 func (h *SendHandle) Close() {

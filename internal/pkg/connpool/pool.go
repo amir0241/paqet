@@ -201,31 +201,44 @@ func (p *ConnPool) cleanupIdleConns() {
 			}
 			p.mu.RUnlock()
 
-			// Try to check and remove idle connections
-			toCheck := len(p.conns)
-			for i := 0; i < toCheck; i++ {
+			// Improved cleanup: batch process and minimize channel operations
+			poolSize := len(p.conns)
+			if poolSize == 0 {
+				continue
+			}
+			
+			// Process up to the current pool size to avoid infinite loop
+			toRequeue := make([]*poolConn, 0, poolSize)
+			now := time.Now()
+			
+			for i := 0; i < poolSize; i++ {
 				select {
 				case pc := <-p.conns:
 					if pc == nil || pc.Conn == nil {
 						continue
 					}
 					// Check if connection has been idle too long
-					idleTime := time.Since(pc.returnedAt)
+					idleTime := now.Sub(pc.returnedAt)
 					if idleTime > p.idleTimeout {
 						// Connection has been idle too long, close it
 						pc.Conn.Close()
 					} else {
-						// Return to pool
-						select {
-						case p.conns <- pc:
-						default:
-							// Pool full, close connection
-							pc.Conn.Close()
-						}
+						// Keep for requeuing
+						toRequeue = append(toRequeue, pc)
 					}
 				default:
 					// No more connections to check
 					break
+				}
+			}
+			
+			// Requeue valid connections in batch
+			for _, pc := range toRequeue {
+				select {
+				case p.conns <- pc:
+				default:
+					// Pool full, close connection
+					pc.Conn.Close()
 				}
 			}
 		}
