@@ -15,9 +15,9 @@ import (
 	"paqet/internal/pkg/connpool"
 	"paqet/internal/socket"
 	"paqet/internal/tnet"
+	"paqet/internal/tnet/grpc"
 	"paqet/internal/tnet/kcp"
 	"paqet/internal/tnet/quic"
-	"paqet/internal/tnet/tcp"
 )
 
 type Server struct {
@@ -124,10 +124,10 @@ func (s *Server) Start() error {
 		if quicListener, ok := listener.(interface{ SetContext(context.Context) }); ok {
 			quicListener.SetContext(ctx)
 		}
-	case "tcp":
-		listener, err = tcp.Listen(s.cfg.Transport.TransportTCP, pConn)
+	case "grpc":
+		listener, err = grpc.Listen(s.cfg.Transport.GRPC, pConn)
 		if err != nil {
-			return fmt.Errorf("could not start TCP listener: %w", err)
+			return fmt.Errorf("could not start gRPC listener: %w", err)
 		}
 	default:
 		return fmt.Errorf("unsupported transport protocol: %s", s.cfg.Transport.Protocol)
