@@ -8,6 +8,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"math/big"
+	"net"
 	"time"
 )
 
@@ -20,13 +21,17 @@ type GRPC struct {
 	KeepAliveTimeout      int `yaml:"keep_alive_timeout"`       // Keep-alive timeout (default: 20s)
 
 	// Stream settings
-	MaxConcurrentStreams uint32 `yaml:"max_concurrent_streams"` // Maximum concurrent streams per connection (default: 100)
-	InitialWindowSize    int32  `yaml:"initial_window_size"`    // Initial window size for stream-level flow control (default: 64KB)
-	InitialConnWindowSize int32 `yaml:"initial_conn_window_size"` // Initial window size for connection-level flow control (default: 16MB)
+	MaxConcurrentStreams uint32 `yaml:"max_concurrent_streams"`  // Maximum concurrent streams per connection (default: 100)
+	InitialWindowSize    int32  `yaml:"initial_window_size"`     // Initial window size for stream-level flow control (default: 64KB)
+	InitialConnWindowSize int32  `yaml:"initial_conn_window_size"` // Initial window size for connection-level flow control (default: 16MB)
 
 	// Buffer settings
 	WriteBufferSize int `yaml:"write_buffer_size"` // Size of the write buffer (default: 32KB)
 	ReadBufferSize  int `yaml:"read_buffer_size"`  // Size of the read buffer (default: 32KB)
+
+	// Timeout settings
+	AcceptTimeout int `yaml:"accept_timeout"` // Timeout for accepting streams (default: 30s)
+	ReadTimeout   int `yaml:"read_timeout"`   // Timeout for reading from streams (default: 30s)
 
 	// TLS settings
 	InsecureSkipVerify bool   `yaml:"insecure_skip_verify"` // Skip TLS verification (default: false)
@@ -72,6 +77,14 @@ func (g *GRPC) setDefaults(role string) {
 	if g.ReadBufferSize == 0 {
 		g.ReadBufferSize = 32 * 1024 // 32KB
 	}
+
+	if g.AcceptTimeout == 0 {
+		g.AcceptTimeout = 30 // 30 seconds
+	}
+
+	if g.ReadTimeout == 0 {
+		g.ReadTimeout = 30 // 30 seconds
+	}
 }
 
 func (g *GRPC) validate() []error {
@@ -115,6 +128,14 @@ func (g *GRPC) validate() []error {
 
 	if g.ReadBufferSize < 1024 {
 		errors = append(errors, fmt.Errorf("gRPC read_buffer_size must be >= 1024 bytes"))
+	}
+
+	if g.AcceptTimeout < 1 || g.AcceptTimeout > 300 {
+		errors = append(errors, fmt.Errorf("gRPC accept_timeout must be between 1-300 seconds"))
+	}
+
+	if g.ReadTimeout < 1 || g.ReadTimeout > 300 {
+		errors = append(errors, fmt.Errorf("gRPC read_timeout must be between 1-300 seconds"))
 	}
 
 	return errors
@@ -162,6 +183,9 @@ func generateGRPCSelfSignedCert() (tls.Certificate, error) {
 		NotAfter:     time.Now().Add(365 * 24 * time.Hour),
 		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		// Add SAN for modern TLS implementations
+		DNSNames:    []string{"localhost"},
+		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
 	}
 
 	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)

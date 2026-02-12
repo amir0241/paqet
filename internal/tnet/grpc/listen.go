@@ -19,13 +19,15 @@ import (
 
 // Listener implements tnet.Listener for gRPC connections
 type Listener struct {
-	packetConn *socket.PacketConn
-	cfg        *conf.GRPC
-	grpcServer *grpc.Server
-	listener   net.Listener
-	acceptChan chan tnet.Conn
-	ctx        context.Context
-	cancel     context.CancelFunc
+	packetConn    *socket.PacketConn
+	cfg           *conf.GRPC
+	grpcServer    *grpc.Server
+	listener      net.Listener
+	acceptChan    chan tnet.Conn
+	acceptTimeout time.Duration
+	readTimeout   time.Duration
+	ctx           context.Context
+	cancel        context.CancelFunc
 }
 
 // Listen creates a gRPC listener
@@ -104,14 +106,19 @@ func Listen(cfg *conf.GRPC, pConn *socket.PacketConn) (tnet.Listener, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	acceptTimeout := time.Duration(cfg.AcceptTimeout) * time.Second
+	readTimeout := time.Duration(cfg.ReadTimeout) * time.Second
+
 	l := &Listener{
-		packetConn: pConn,
-		cfg:        cfg,
-		grpcServer: grpcServer,
-		listener:   listener,
-		acceptChan: make(chan tnet.Conn, 10),
-		ctx:        ctx,
-		cancel:     cancel,
+		packetConn:    pConn,
+		cfg:           cfg,
+		grpcServer:    grpcServer,
+		listener:      listener,
+		acceptChan:    make(chan tnet.Conn, 10),
+		acceptTimeout: acceptTimeout,
+		readTimeout:   readTimeout,
+		ctx:           ctx,
+		cancel:        cancel,
 	}
 
 	// Register the transport service
@@ -177,11 +184,18 @@ func (s *transportServer) Stream(stream pb.PaqetTransport_StreamServer) error {
 	// Get remote address from stream context
 	remoteAddr := &net.TCPAddr{IP: net.IPv4zero, Port: 0}
 
-	// Create server connection
-	conn, err := NewServerConn(stream, remoteAddr)
+	// Create server connection with timeouts
+	conn, err := NewServerConn(stream, remoteAddr, s.listener.acceptTimeout)
 	if err != nil {
 		return fmt.Errorf("failed to create server connection: %w", err)
 	}
+
+	// Set read timeout on future streams
+	conn.streamMu.Lock()
+	for _, strm := range conn.activeStreams {
+		strm.readTimeout = s.listener.readTimeout
+	}
+	conn.streamMu.Unlock()
 
 	// Send connection to accept channel
 	select {
@@ -189,7 +203,7 @@ func (s *transportServer) Stream(stream pb.PaqetTransport_StreamServer) error {
 	case <-s.listener.ctx.Done():
 		conn.Close()
 		return fmt.Errorf("listener closed")
-	case <-time.After(10 * time.Second):
+	case <-time.After(s.listener.acceptTimeout):
 		conn.Close()
 		return fmt.Errorf("accept timeout")
 	}

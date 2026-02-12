@@ -10,12 +10,13 @@ import (
 
 // Strm implements tnet.Strm interface for gRPC streams
 type Strm struct {
-	conn     *Conn
-	streamID int32
-	recvChan chan []byte
-	recvBuf  []byte
-	recvMu   sync.Mutex
-	closed   atomic.Bool
+	conn        *Conn
+	streamID    int32
+	recvChan    chan []byte
+	recvBuf     []byte
+	recvMu      sync.Mutex
+	closed      atomic.Bool
+	readTimeout time.Duration
 }
 
 // Read reads data from the stream
@@ -46,7 +47,7 @@ func (s *Strm) Read(b []byte) (int, error) {
 			s.recvBuf = data[n:]
 		}
 		return n, nil
-	case <-time.After(30 * time.Second):
+	case <-time.After(s.readTimeout):
 		return 0, io.ErrNoProgress
 	}
 }

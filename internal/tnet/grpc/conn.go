@@ -36,6 +36,9 @@ type Conn struct {
 	activeStreams map[int32]*Strm
 	acceptChan    chan *Strm
 	
+	// Configuration
+	acceptTimeout time.Duration
+	
 	// Connection state
 	closed atomic.Bool
 	ctx    context.Context
@@ -43,7 +46,7 @@ type Conn struct {
 }
 
 // NewClientConn creates a new client-side gRPC connection
-func NewClientConn(grpcConn *grpc.ClientConn, pConn *socket.PacketConn, remoteAddr net.Addr) (*Conn, error) {
+func NewClientConn(grpcConn *grpc.ClientConn, pConn *socket.PacketConn, remoteAddr net.Addr, acceptTimeout time.Duration) (*Conn, error) {
 	client := pb.NewPaqetTransportClient(grpcConn)
 	
 	ctx, cancel := context.WithCancel(context.Background())
@@ -65,6 +68,7 @@ func NewClientConn(grpcConn *grpc.ClientConn, pConn *socket.PacketConn, remoteAd
 		remoteAddr:    remoteAddr,
 		activeStreams: make(map[int32]*Strm),
 		acceptChan:    make(chan *Strm, 100),
+		acceptTimeout: acceptTimeout,
 		ctx:           ctx,
 		cancel:        cancel,
 	}
@@ -76,7 +80,7 @@ func NewClientConn(grpcConn *grpc.ClientConn, pConn *socket.PacketConn, remoteAd
 }
 
 // NewServerConn creates a new server-side gRPC connection
-func NewServerConn(serverStream pb.PaqetTransport_StreamServer, remoteAddr net.Addr) (*Conn, error) {
+func NewServerConn(serverStream pb.PaqetTransport_StreamServer, remoteAddr net.Addr, acceptTimeout time.Duration) (*Conn, error) {
 	ctx, cancel := context.WithCancel(serverStream.Context())
 	
 	conn := &Conn{
@@ -86,6 +90,7 @@ func NewServerConn(serverStream pb.PaqetTransport_StreamServer, remoteAddr net.A
 		remoteAddr:    remoteAddr,
 		activeStreams: make(map[int32]*Strm),
 		acceptChan:    make(chan *Strm, 100),
+		acceptTimeout: acceptTimeout,
 		ctx:           ctx,
 		cancel:        cancel,
 	}
@@ -121,10 +126,11 @@ func (c *Conn) receiveLoop() {
 		if !exists {
 			// New incoming stream
 			strm = &Strm{
-				conn:     c,
-				streamID: msg.StreamId,
-				recvChan: make(chan []byte, 100),
-				closed:   atomic.Bool{},
+				conn:        c,
+				streamID:    msg.StreamId,
+				recvChan:    make(chan []byte, 100),
+				readTimeout: c.acceptTimeout, // Use accept timeout as read timeout
+				closed:      atomic.Bool{},
 			}
 			c.activeStreams[msg.StreamId] = strm
 			
@@ -159,10 +165,11 @@ func (c *Conn) OpenStrm() (tnet.Strm, error) {
 	c.streamMu.Lock()
 	streamID := atomic.AddInt32(&c.nextStreamID, 1)
 	strm := &Strm{
-		conn:     c,
-		streamID: streamID,
-		recvChan: make(chan []byte, 100),
-		closed:   atomic.Bool{},
+		conn:        c,
+		streamID:    streamID,
+		recvChan:    make(chan []byte, 100),
+		readTimeout: c.acceptTimeout, // Use accept timeout as read timeout
+		closed:      atomic.Bool{},
 	}
 	c.activeStreams[streamID] = strm
 	c.streamMu.Unlock()
@@ -177,7 +184,7 @@ func (c *Conn) AcceptStrm() (tnet.Strm, error) {
 		return strm, nil
 	case <-c.ctx.Done():
 		return nil, fmt.Errorf("connection closed")
-	case <-time.After(30 * time.Second):
+	case <-time.After(c.acceptTimeout):
 		return nil, fmt.Errorf("accept timeout")
 	}
 }

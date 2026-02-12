@@ -77,11 +77,19 @@ func Dial(addr *net.UDPAddr, cfg *conf.GRPC, pConn *socket.PacketConn) (tnet.Con
 	flog.Debugf("gRPC connection established to %s", tcpAddr.String())
 
 	// Create and return connection
-	conn, err := NewClientConn(grpcConn, pConn, tcpAddr)
+	acceptTimeout := time.Duration(cfg.AcceptTimeout) * time.Second
+	conn, err := NewClientConn(grpcConn, pConn, tcpAddr, acceptTimeout)
 	if err != nil {
 		grpcConn.Close()
 		return nil, fmt.Errorf("failed to create client connection: %w", err)
 	}
+
+	// Set read timeout on streams
+	conn.streamMu.Lock()
+	for _, strm := range conn.activeStreams {
+		strm.readTimeout = time.Duration(cfg.ReadTimeout) * time.Second
+	}
+	conn.streamMu.Unlock()
 
 	return conn, nil
 }
