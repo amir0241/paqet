@@ -5,7 +5,7 @@ This Version Fixed Buffer Size Problem
 [![Go Version](https://img.shields.io/badge/go-1.25+-blue.svg)](https://golang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-`paqet` is a bidirectional packet level proxy built using raw sockets. It forwards traffic from a local client to a remote server, bypassing the host operating system's TCP/IP stack, using KCP or QUIC for secure, reliable transport.
+`paqet` is a bidirectional packet level proxy built using raw sockets. It forwards traffic from a local client to a remote server, bypassing the host operating system's TCP/IP stack, using KCP, QUIC, or TCP for secure, reliable transport.
 
 > **⚠️ Development Status Notice**
 >
@@ -13,15 +13,16 @@ This Version Fixed Buffer Size Problem
 
 ## How It Works
 
-`paqet` captures packets using `pcap` and injects crafted TCP packets containing encrypted transport data. You can choose between two transport protocols:
+`paqet` captures packets using `pcap` and injects crafted TCP packets containing encrypted transport data. You can choose between three transport protocols:
 
 - **KCP**: Reliable UDP-based protocol optimized for high-loss networks with aggressive retransmission and forward error correction
 - **QUIC**: Modern IETF standard protocol optimized for high bandwidth and many concurrent connections with 0-RTT support
+- **TCP**: Standard TCP transport with smux multiplexing for stream management, ideal for networks that heavily filter UDP traffic
 
 ```
 [Your App] <------> [paqet Client] <===== Raw TCP Packet =====> [paqet Server] <------> [Target Server]
 (e.g. curl)        (localhost:1080)        (Internet)          (Public IP:PORT)     (e.g. https://httpbin.org)
-                                      (KCP or QUIC transport)
+                                  (KCP, QUIC, or TCP transport)
 ```
 
 `paqet` use cases include bypassing firewalls that detect standard handshake protocols and kernel-level connection tracking, as well as network security research. While more complex to configure than general-purpose VPN solutions, it offers granular control at the packet level.
@@ -108,7 +109,7 @@ server:
 
 # Transport protocol configuration
 transport:
-  protocol: "kcp" # Transport protocol (currently only "kcp" supported)
+  protocol: "kcp" # Transport protocol: "kcp", "quic", or "tcp"
   kcp:
     block: "aes" # Encryption algorithm
     key: "your-secret-key-here" # CHANGE ME: Secret key (must match server)
@@ -137,7 +138,7 @@ network:
 
 # Transport protocol configuration
 transport:
-  protocol: "kcp" # Transport protocol (currently only "kcp" supported)
+  protocol: "kcp" # Transport protocol: "kcp", "quic", or "tcp"
   kcp:
     block: "aes" # Encryption algorithm
     key: "your-secret-key-here" # CHANGE ME: Secret key (must match client)
