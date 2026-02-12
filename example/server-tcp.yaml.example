@@ -1,0 +1,63 @@
+# paqet Server Configuration Example with TCP
+# This configuration uses TCP protocol with smux multiplexing
+role: "server"
+
+# Logging configuration
+log:
+  level: "info"  # none, debug, info, warn, error, fatal
+
+# Server listen configuration
+listen:
+  addr: ":9999"   # CHANGE ME: Server listen port (must match network.ipv4.addr port)
+                  # WARNING: Do not use standard ports (80, 443, etc.) as iptables rules
+                  # can affect outgoing server connections.
+
+# Network interface settings
+network:
+  interface: "eth0"                          # CHANGE ME: Network interface (eth0, ens3, en0, etc.)
+  # guid: "\Device\NPF_{...}"                # Windows only (Npcap).
+
+  # IPv4 configuration
+  ipv4:
+    addr: "10.0.0.100:9999"                  # CHANGE ME: Server IPv4 and port (port must match listen.addr)
+    router_mac: "aa:bb:cc:dd:ee:ff"          # CHANGE ME: Gateway/router MAC address
+
+  # TCP flags for packet crafting (optional - will use defaults)
+  tcp:
+    local_flag: ["PA"]                       # Local TCP flags (Push+Ack default)
+
+# Transport protocol configuration - TCP
+transport:
+  protocol: "tcp"  # Using standard TCP transport with smux multiplexing
+  conn: 1          # Number of connections (1-256, default: 1)
+
+  # TCP protocol settings
+  tcp:
+    # TCP connection settings
+    keep_alive: true              # Enable TCP keep-alive (default: true)
+    keep_alive_period: 30         # Keep-alive probe interval in seconds (default: 30)
+    no_delay: true                # Disable Nagle's algorithm for lower latency (default: true)
+    
+    # Buffer sizes (optimized for performance)
+    read_buffer_size: 4194304     # 4MB read buffer (default)
+    write_buffer_size: 4194304    # 4MB write buffer (default)
+    
+    # SMUX multiplexing settings (optional - defaults provided)
+    # smux:
+      # version: 1                    # SMUX protocol version (1 or 2, default: 1)
+      # max_frame_size: 32768         # Maximum frame size: 32KB (default)
+      # max_receive_buffer: 4194304   # Maximum receive buffer: 4MB (default)
+      # max_stream_buffer: 2097152    # Maximum stream buffer: 2MB (default)
+      # keep_alive_interval: 10       # SMUX keep-alive interval in seconds (default: 10)
+      # keep_alive_timeout: 30        # SMUX keep-alive timeout in seconds (default: 30)
+
+# Important: Server Firewall Configuration Required!
+# 
+# Since paqet uses pcap to bypass standard firewalls, you MUST configure
+# iptables on the server to prevent kernel interference:
+#
+# sudo iptables -t raw -A PREROUTING -p tcp --dport 9999 -j NOTRACK
+# sudo iptables -t raw -A OUTPUT -p tcp --sport 9999 -j NOTRACK  
+# sudo iptables -t mangle -A OUTPUT -p tcp --sport 9999 --tcp-flags RST RST -j DROP
+#
+# Replace 9999 with your actual listen port.
