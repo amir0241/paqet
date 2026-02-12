@@ -48,6 +48,9 @@ type SMUXConfig struct {
 }
 
 func (t *TransportTCP) setDefaults(role string) {
+	// Note: TCP transport uses the same defaults for both client and server roles
+	// Unlike KCP and QUIC which have role-specific optimizations
+
 	// TCP connection settings
 	if t.KeepAlivePeriod == 0 {
 		t.KeepAlivePeriod = 30
