@@ -1,0 +1,83 @@
+# Python Requirements for paqet Port
+# Core packet handling and networking
+
+# Packet crafting and parsing
+scapy>=2.5.0
+
+# Raw packet capture (choose one based on platform)
+pypcap>=1.2.3        # Recommended for Linux/macOS
+# pcapy-ng>=1.0.9    # Alternative, cross-platform
+
+# QUIC protocol implementation
+aioquic>=0.9.21
+
+# CLI framework
+click>=8.1.0
+
+# Configuration parsing
+PyYAML>=6.0
+pydantic>=2.0.0      # For config validation
+
+# Encryption and cryptography
+cryptography>=41.0.0
+
+# Async HTTP client/server (for testing and utilities)
+aiohttp>=3.8.0
+
+# SOCKS proxy support
+PySocks>=1.7.1
+
+# Network utilities
+netifaces>=0.11.0    # Network interface enumeration
+
+# Logging and monitoring
+structlog>=23.1.0    # Structured logging
+
+# Data structures
+dataclasses-json>=0.6.0
+
+# Development Dependencies
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.0
+pytest-timeout>=2.1.0
+
+# Code quality
+black>=23.0.0
+flake8>=6.0.0
+isort>=5.12.0
+mypy>=1.5.0
+pylint>=2.17.0
+
+# Type stubs
+types-PyYAML>=6.0.0
+
+# Documentation
+sphinx>=7.1.0
+sphinx-rtd-theme>=1.3.0
+sphinx-click>=5.0.0
+
+# Build and packaging
+build>=0.10.0
+twine>=4.0.0
+wheel>=0.41.0
+
+# Performance profiling (optional)
+cython>=3.0.0        # For compiling performance-critical code
+line_profiler>=4.0.0
+memory_profiler>=0.61.0
+
+# Platform-specific notes:
+# 
+# Linux:
+#   sudo apt-get install libpcap-dev python3-dev gcc
+# 
+# macOS:
+#   xcode-select --install  # Includes libpcap
+# 
+# Windows:
+#   1. Install Npcap from https://npcap.com/
+#   2. Install Visual C++ Build Tools
+#   3. Install WinPcap-compatible libraries
