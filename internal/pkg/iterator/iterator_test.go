@@ -39,9 +39,10 @@ func TestIterator_EmptyItemsPointer(t *testing.T) {
 
 func TestIterator_WithItems(t *testing.T) {
 	// Test normal operation with items
+	// Note: Iterator starts at index 0, and Next() increments before returning
 	iter := &Iterator[int]{Items: []int{1, 2, 3}}
 	
-	// Test Next() cycles through items
+	// Test Next() cycles through items (starts at 0, increments to 1, returns Items[1])
 	if got := iter.Next(); got != 2 {
 		t.Errorf("Expected 2, got %d", got)
 	}
@@ -55,8 +56,10 @@ func TestIterator_WithItems(t *testing.T) {
 
 func TestIterator_Peek(t *testing.T) {
 	// Test Peek() doesn't advance the iterator
+	// Note: Iterator starts at index 0
 	iter := &Iterator[int]{Items: []int{10, 20, 30}}
 	
+	// Peek at initial position (index 0)
 	if got := iter.Peek(); got != 10 {
 		t.Errorf("Expected 10, got %d", got)
 	}
