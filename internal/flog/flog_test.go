@@ -61,10 +61,11 @@ func TestLoggingUnderLoad(t *testing.T) {
 	}
 
 	expectedMessages := numMessages * numGoroutines
-	// We expect all or nearly all messages (allow for very small loss due to timing)
-	if messageCount < expectedMessages-5 {
+	// With the timeout-based approach, we should get all messages (no loss)
+	// Allow only 1 message loss in case of extreme timing edge cases
+	if messageCount < expectedMessages-1 {
 		t.Errorf("Expected at least %d messages, but got %d (loss: %d)", 
-			expectedMessages-5, messageCount, expectedMessages-messageCount)
+			expectedMessages-1, messageCount, expectedMessages-messageCount)
 	}
 }
 

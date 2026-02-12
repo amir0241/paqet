@@ -2,7 +2,6 @@ package flog
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"net"
 	"os"
@@ -42,8 +41,8 @@ func TestClientStartupLogMessage(t *testing.T) {
 	io.Copy(&buf, r)
 	output := buf.String()
 
-	// Print the actual output for manual verification
-	fmt.Printf("Captured log output:\n%s\n", output)
+	// Log the output for debugging (only shows with -v flag)
+	t.Logf("Captured log output:\n%s", output)
 
 	// Verify the complete log message is present
 	expectedParts := []string{
