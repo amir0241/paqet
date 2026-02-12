@@ -1,5 +1,5 @@
-# paqet Server Configuration Example with TCP
-# This configuration uses TCP protocol with smux multiplexing
+# paqet Server Configuration Example with gRPC
+# This configuration uses gRPC protocol with HTTP/2 multiplexing
 role: "server"
 
 # Logging configuration
@@ -26,30 +26,28 @@ network:
   tcp:
     local_flag: ["PA"]                       # Local TCP flags (Push+Ack default)
 
-# Transport protocol configuration - TCP
+# Transport protocol configuration - gRPC
 transport:
-  protocol: "tcp"  # Using standard TCP transport with smux multiplexing
-  conn: 1          # Number of connections (1-256, default: 1)
+  protocol: "grpc"  # Using gRPC transport with HTTP/2 multiplexing
+  conn: 1           # Number of connections (1-256, default: 1)
 
-  # TCP protocol settings
-  tcp:
-    # TCP connection settings
-    keep_alive: true              # Enable TCP keep-alive (default: true)
-    keep_alive_period: 30         # Keep-alive probe interval in seconds (default: 30)
-    no_delay: true                # Disable Nagle's algorithm for lower latency (default: true)
+  # gRPC protocol settings
+  grpc:
+    # Connection settings
+    max_connection_idle: 300            # Maximum idle time before closing (seconds, default: 300)
+    max_connection_age: 0               # Maximum connection age (0 = unlimited, default: 0)
+    max_connection_age_grace: 0         # Grace period for active RPCs (0 = unlimited, default: 0)
+    keep_alive_time: 7200               # Keep-alive ping interval (seconds, default: 7200)
+    keep_alive_timeout: 20              # Keep-alive timeout (seconds, default: 20)
     
-    # Buffer sizes (optimized for performance)
-    read_buffer_size: 4194304     # 4MB read buffer (default)
-    write_buffer_size: 4194304    # 4MB write buffer (default)
+    # Stream settings
+    max_concurrent_streams: 1000        # Maximum concurrent streams (default: 1000 for server)
+    initial_window_size: 65535          # Initial stream window size (bytes, default: 64KB)
+    initial_conn_window_size: 16777216  # Initial connection window size (bytes, default: 16MB)
     
-    # SMUX multiplexing settings (optional - defaults provided)
-    # smux:
-      # version: 1                    # SMUX protocol version (1 or 2, default: 1)
-      # max_frame_size: 32768         # Maximum frame size: 32KB (default)
-      # max_receive_buffer: 4194304   # Maximum receive buffer: 4MB (default)
-      # max_stream_buffer: 2097152    # Maximum stream buffer: 2MB (default)
-      # keep_alive_interval: 10       # SMUX keep-alive interval in seconds (default: 10)
-      # keep_alive_timeout: 30        # SMUX keep-alive timeout in seconds (default: 30)
+    # Buffer sizes
+    write_buffer_size: 32768            # Write buffer size (bytes, default: 32KB)
+    read_buffer_size: 32768             # Read buffer size (bytes, default: 32KB)
 
 # Important: Server Firewall Configuration Required!
 # 
