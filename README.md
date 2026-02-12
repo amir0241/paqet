@@ -238,13 +238,16 @@ paqet uses unified YAML configuration for client and server. The `role` field mu
 - [`example/server.yaml.example`](example/server.yaml.example) - Server configuration reference (KCP)
 - [`example/client-quic.yaml.example`](example/client-quic.yaml.example) - Client configuration with QUIC
 - [`example/server-quic.yaml.example`](example/server-quic.yaml.example) - Server configuration with QUIC
+- [`example/client-grpc.yaml.example`](example/client-grpc.yaml.example) - Client configuration with gRPC
+- [`example/server-grpc.yaml.example`](example/server-grpc.yaml.example) - Server configuration with gRPC
 
 ### Transport Protocols
 
-paqet supports two transport protocols:
+paqet supports three transport protocols:
 
 - **KCP** - UDP-based protocol optimized for lossy networks. Best for high packet loss scenarios and real-time applications.
 - **QUIC** - Modern IETF standard protocol optimized for high bandwidth and many concurrent connections. Best for production deployments with good network conditions.
+- **gRPC** - Modern RPC framework using HTTP/2 over TCP. Best for environments that heavily filter UDP traffic or require standard TCP connections.
 
 **See [`docs/QUIC.md`](docs/QUIC.md) for detailed QUIC documentation, performance tuning, and migration guide.**
 

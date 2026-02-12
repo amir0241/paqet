@@ -6,13 +6,13 @@ import (
 )
 
 type Transport struct {
-	Protocol     string        `yaml:"protocol"`
-	Conn         int           `yaml:"conn"`
-	TCPBuf       int           `yaml:"tcpbuf"`
-	UDPBuf       int           `yaml:"udpbuf"`
-	KCP          *KCP          `yaml:"kcp"`
-	QUIC         *QUIC         `yaml:"quic"`
-	TransportTCP *TransportTCP `yaml:"tcp"`
+	Protocol string `yaml:"protocol"`
+	Conn     int    `yaml:"conn"`
+	TCPBuf   int    `yaml:"tcpbuf"`
+	UDPBuf   int    `yaml:"udpbuf"`
+	KCP      *KCP   `yaml:"kcp"`
+	QUIC     *QUIC  `yaml:"quic"`
+	GRPC     *GRPC  `yaml:"grpc"`
 }
 
 func (t *Transport) setDefaults(role string) {
@@ -38,18 +38,18 @@ func (t *Transport) setDefaults(role string) {
 		t.KCP.setDefaults(role)
 	case "quic":
 		t.QUIC.setDefaults(role)
-	case "tcp":
-		if t.TransportTCP == nil {
-			t.TransportTCP = &TransportTCP{}
+	case "grpc":
+		if t.GRPC == nil {
+			t.GRPC = &GRPC{}
 		}
-		t.TransportTCP.setDefaults(role)
+		t.GRPC.setDefaults(role)
 	}
 }
 
 func (t *Transport) validate() []error {
 	var errors []error
 
-	validProtocols := []string{"kcp", "quic", "tcp"}
+	validProtocols := []string{"kcp", "quic", "grpc"}
 	if !slices.Contains(validProtocols, t.Protocol) {
 		errors = append(errors, fmt.Errorf("transport protocol must be one of: %v", validProtocols))
 	}
@@ -63,8 +63,8 @@ func (t *Transport) validate() []error {
 		errors = append(errors, t.KCP.validate()...)
 	case "quic":
 		errors = append(errors, t.QUIC.validate()...)
-	case "tcp":
-		errors = append(errors, t.TransportTCP.validate()...)
+	case "grpc":
+		errors = append(errors, t.GRPC.validate()...)
 	}
 
 	return errors

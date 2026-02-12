@@ -7,9 +7,9 @@ import (
 	"paqet/internal/protocol"
 	"paqet/internal/socket"
 	"paqet/internal/tnet"
+	"paqet/internal/tnet/grpc"
 	"paqet/internal/tnet/kcp"
 	"paqet/internal/tnet/quic"
-	"paqet/internal/tnet/tcp"
 	"time"
 )
 
@@ -44,8 +44,8 @@ func (tc *timedConn) createConn() (tnet.Conn, error) {
 		conn, err = kcp.Dial(tc.cfg.Server.Addr, tc.cfg.Transport.KCP, pConn)
 	case "quic":
 		conn, err = quic.Dial(tc.cfg.Server.Addr, tc.cfg.Transport.QUIC, pConn)
-	case "tcp":
-		conn, err = tcp.Dial(tc.cfg.Server.Addr, tc.cfg.Transport.TransportTCP, pConn)
+	case "grpc":
+		conn, err = grpc.Dial(tc.cfg.Server.Addr, tc.cfg.Transport.GRPC, pConn)
 	default:
 		return nil, fmt.Errorf("unsupported transport protocol: %s", tc.cfg.Transport.Protocol)
 	}
