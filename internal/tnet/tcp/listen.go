@@ -3,6 +3,8 @@ package tcp
 import (
 	"fmt"
 	"net"
+	"time"
+
 	"paqet/internal/conf"
 	"paqet/internal/flog"
 	"paqet/internal/socket"
@@ -66,11 +68,26 @@ func (l *Listener) Accept() (tnet.Conn, error) {
 		return nil, fmt.Errorf("failed to configure TCP connection: %w", err)
 	}
 
+	// Set a deadline for the smux handshake to prevent indefinite blocking
+	// The smux.Server() call blocks until it receives the initial handshake from the client
+	handshakeDeadline := time.Now().Add(30 * time.Second)
+	if err := conn.SetReadDeadline(handshakeDeadline); err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("failed to set read deadline: %w", err)
+	}
+
 	// Create smux server session
 	sess, err := smux.Server(conn, smuxConfig(l.cfg))
 	if err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("failed to create smux session: %w", err)
+	}
+
+	// Clear the deadline after successful handshake
+	if err := conn.SetReadDeadline(time.Time{}); err != nil {
+		sess.Close()
+		conn.Close()
+		return nil, fmt.Errorf("failed to clear read deadline: %w", err)
 	}
 
 	flog.Debugf("Accepted TCP connection from %s", conn.RemoteAddr())
