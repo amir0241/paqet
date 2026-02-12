@@ -23,18 +23,16 @@ var (
 )
 
 func init() {
-
+	// Start the logging goroutine immediately to prevent race conditions
+	go func() {
+		for msg := range logCh {
+			fmt.Fprint(os.Stdout, msg)
+		}
+	}()
 }
 
 func SetLevel(l int) {
 	minLevel = Level(l)
-	if l != -1 {
-		go func() {
-			for msg := range logCh {
-				fmt.Fprint(os.Stdout, msg)
-			}
-		}()
-	}
 }
 
 func logf(level Level, format string, args ...any) {
@@ -54,9 +52,13 @@ func logf(level Level, format string, args ...any) {
 	now := time.Now().Format("2006-01-02 15:04:05.000")
 	line := fmt.Sprintf("%s [%s] %s\n", now, level.String(), fmt.Sprintf(format, args...))
 
+	// Use blocking send with timeout to prevent message loss
+	// This ensures critical messages are logged even under high load
 	select {
 	case logCh <- line:
-	default:
+	case <-time.After(100 * time.Millisecond):
+		// If we can't send within 100ms, print directly to avoid deadlock
+		fmt.Fprint(os.Stdout, line)
 	}
 }
 
