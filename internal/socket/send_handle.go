@@ -353,10 +353,10 @@ func (h *SendHandle) setClientTCPF(addr net.Addr, f []conf.TCPF) {
 	if addr == nil {
 		return
 	}
-	
+
 	var ip net.IP
 	var port int
-	
+
 	// Handle both TCP and UDP addresses
 	switch a := addr.(type) {
 	case *net.TCPAddr:
@@ -369,7 +369,7 @@ func (h *SendHandle) setClientTCPF(addr net.Addr, f []conf.TCPF) {
 		// Unsupported address type, skip
 		return
 	}
-	
+
 	h.tcpF.mu.Lock()
 	h.tcpF.clientTCPF[hash.IPAddr(ip, uint16(port))] = &iterator.Iterator[conf.TCPF]{Items: f}
 	h.tcpF.mu.Unlock()
