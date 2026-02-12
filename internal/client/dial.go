@@ -17,7 +17,7 @@ func (c *Client) newConn() (tnet.Conn, error) {
 		return nil, fmt.Errorf("no available connections")
 	}
 	if tc.conn == nil {
-		flog.Errorf("connection is nil, recreating...")
+		flog.Errorf("connection is unexpectedly nil, attempting to recreate connection")
 		c, err := tc.createConn()
 		if err != nil {
 			flog.Errorf("failed to create initial connection: %v", err)
@@ -26,7 +26,7 @@ func (c *Client) newConn() (tnet.Conn, error) {
 		tc.conn = c
 		tc.expire = time.Now().Add(time.Duration(autoExpire) * time.Second)
 	}
-	
+
 	go tc.sendTCPF(tc.conn)
 	err := tc.conn.Ping(false)
 	if err != nil {
