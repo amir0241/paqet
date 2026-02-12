@@ -13,6 +13,9 @@ func (c *Client) newConn() (tnet.Conn, error) {
 	defer c.mu.Unlock()
 	autoExpire := 300
 	tc := c.iter.Next()
+	if tc == nil {
+		return nil, fmt.Errorf("no available connections")
+	}
 	go tc.sendTCPF(tc.conn)
 	err := tc.conn.Ping(false)
 	if err != nil {
