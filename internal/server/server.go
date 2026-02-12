@@ -15,7 +15,6 @@ import (
 	"paqet/internal/pkg/connpool"
 	"paqet/internal/socket"
 	"paqet/internal/tnet"
-	"paqet/internal/tnet/grpc"
 	"paqet/internal/tnet/kcp"
 	"paqet/internal/tnet/quic"
 )
@@ -123,11 +122,6 @@ func (s *Server) Start() error {
 		// Set context on QUIC listener for proper cancellation
 		if quicListener, ok := listener.(interface{ SetContext(context.Context) }); ok {
 			quicListener.SetContext(ctx)
-		}
-	case "grpc":
-		listener, err = grpc.Listen(s.cfg.Transport.GRPC, pConn)
-		if err != nil {
-			return fmt.Errorf("could not start gRPC listener: %w", err)
 		}
 	default:
 		return fmt.Errorf("unsupported transport protocol: %s", s.cfg.Transport.Protocol)
