@@ -87,7 +87,7 @@ func (l *Listener) Close() error {
 	var firstErr error
 
 	if l.listener != nil {
-		if err := l.listener.Close(); err != nil {
+		if err := l.listener.Close(); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
