@@ -169,12 +169,21 @@ func TestSetClientTCPFWithNilAddr(t *testing.T) {
 		t.Errorf("Expected clientTCPF map to be empty, got %d entries", len(sh.tcpF.clientTCPF))
 	}
 
-	// Test with valid address
-	addr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 8080}
-	sh.setClientTCPF(addr, tcpFlags)
+	// Test with valid UDP address
+	udpAddr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 8080}
+	sh.setClientTCPF(udpAddr, tcpFlags)
 
 	// Verify that the entry was added
 	if len(sh.tcpF.clientTCPF) != 1 {
 		t.Errorf("Expected clientTCPF map to have 1 entry, got %d", len(sh.tcpF.clientTCPF))
+	}
+
+	// Test with valid TCP address (regression test for panic)
+	tcpAddr := &net.TCPAddr{IP: net.IPv4(192, 168, 1, 1), Port: 9998}
+	sh.setClientTCPF(tcpAddr, tcpFlags)
+
+	// Verify that the entry was added
+	if len(sh.tcpF.clientTCPF) != 2 {
+		t.Errorf("Expected clientTCPF map to have 2 entries, got %d", len(sh.tcpF.clientTCPF))
 	}
 }
