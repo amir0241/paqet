@@ -3,11 +3,12 @@ package tcp
 import (
 	"fmt"
 	"net"
+	"time"
+
 	"paqet/internal/conf"
 	"paqet/internal/flog"
 	"paqet/internal/socket"
 	"paqet/internal/tnet"
-	"time"
 
 	"github.com/xtaci/smux"
 )
