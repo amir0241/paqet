@@ -13,16 +13,15 @@ This Version Fixed Buffer Size Problem
 
 ## How It Works
 
-`paqet` captures packets using `pcap` and injects crafted TCP packets containing encrypted transport data. You can choose between three transport protocols:
+`paqet` captures packets using `pcap` and injects crafted TCP packets containing encrypted transport data. You can choose between two transport protocols:
 
 - **KCP**: Reliable UDP-based protocol optimized for high-loss networks with aggressive retransmission and forward error correction
 - **QUIC**: Modern IETF standard protocol optimized for high bandwidth and many concurrent connections with 0-RTT support
-- **TCP**: Standard TCP transport with smux multiplexing for stream management, ideal for networks that heavily filter UDP traffic
 
 ```
 [Your App] <------> [paqet Client] <===== Raw TCP Packet =====> [paqet Server] <------> [Target Server]
 (e.g. curl)        (localhost:1080)        (Internet)          (Public IP:PORT)     (e.g. https://httpbin.org)
-                                  (KCP, QUIC, or TCP transport)
+                                  (KCP or QUIC transport)
 ```
 
 `paqet` use cases include bypassing firewalls that detect standard handshake protocols and kernel-level connection tracking, as well as network security research. While more complex to configure than general-purpose VPN solutions, it offers granular control at the packet level.
@@ -109,7 +108,7 @@ server:
 
 # Transport protocol configuration
 transport:
-  protocol: "kcp" # Transport protocol: "kcp", "quic", or "tcp"
+  protocol: "kcp" # Transport protocol: "kcp" or "quic"
   kcp:
     block: "aes" # Encryption algorithm
     key: "your-secret-key-here" # CHANGE ME: Secret key (must match server)
@@ -138,7 +137,7 @@ network:
 
 # Transport protocol configuration
 transport:
-  protocol: "kcp" # Transport protocol: "kcp", "quic", or "tcp"
+  protocol: "kcp" # Transport protocol: "kcp" or "quic"
   kcp:
     block: "aes" # Encryption algorithm
     key: "your-secret-key-here" # CHANGE ME: Secret key (must match client)
@@ -238,16 +237,13 @@ paqet uses unified YAML configuration for client and server. The `role` field mu
 - [`example/server.yaml.example`](example/server.yaml.example) - Server configuration reference (KCP)
 - [`example/client-quic.yaml.example`](example/client-quic.yaml.example) - Client configuration with QUIC
 - [`example/server-quic.yaml.example`](example/server-quic.yaml.example) - Server configuration with QUIC
-- [`example/client-grpc.yaml.example`](example/client-grpc.yaml.example) - Client configuration with gRPC
-- [`example/server-grpc.yaml.example`](example/server-grpc.yaml.example) - Server configuration with gRPC
 
 ### Transport Protocols
 
-paqet supports three transport protocols:
+paqet supports two transport protocols:
 
 - **KCP** - UDP-based protocol optimized for lossy networks. Best for high packet loss scenarios and real-time applications.
 - **QUIC** - Modern IETF standard protocol optimized for high bandwidth and many concurrent connections. Best for production deployments with good network conditions.
-- **gRPC** - Modern RPC framework using HTTP/2 over TCP. Best for environments that heavily filter UDP traffic or require standard TCP connections.
 
 **See [`docs/QUIC.md`](docs/QUIC.md) for detailed QUIC documentation, performance tuning, and migration guide.**
 
