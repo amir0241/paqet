@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"paqet/internal/flog"
 	"sync"
 	"time"
 )
@@ -99,13 +100,17 @@ func (p *ConnPool) Get(ctx context.Context) (net.Conn, error) {
 			// Test connection with a quick operation (set deadline)
 			if err := pc.SetDeadline(time.Now().Add(1 * time.Second)); err != nil {
 				// Connection is dead, close it and get a new one
-				pc.Conn.Close()
+				if closeErr := pc.Conn.Close(); closeErr != nil {
+					flog.Debugf("error closing dead connection: %v", closeErr)
+				}
 				continue
 			}
 			// Reset deadline
 			if err := pc.SetDeadline(time.Time{}); err != nil {
 				// Failed to reset deadline, close and try again
-				pc.Conn.Close()
+				if closeErr := pc.Conn.Close(); closeErr != nil {
+					flog.Debugf("error closing connection after deadline reset failure: %v", closeErr)
+				}
 				continue
 			}
 			pc.lastUsed = time.Now()
@@ -179,7 +184,9 @@ func (p *ConnPool) Close() error {
 	close(p.conns)
 	for pc := range p.conns {
 		if pc.Conn != nil {
-			pc.Conn.Close()
+			if err := pc.Conn.Close(); err != nil {
+				flog.Debugf("error closing pooled connection during shutdown: %v", err)
+			}
 		}
 	}
 
@@ -219,14 +226,18 @@ func (p *ConnPool) cleanupIdleConns() {
 					idleTime := time.Since(pc.returnedAt)
 					if idleTime > p.idleTimeout {
 						// Connection has been idle too long, close it
-						pc.Conn.Close()
+						if err := pc.Conn.Close(); err != nil {
+							flog.Debugf("error closing idle connection: %v", err)
+						}
 					} else {
 						// Return to pool
 						select {
 						case p.conns <- pc:
 						default:
 							// Pool full, close connection
-							pc.Conn.Close()
+							if err := pc.Conn.Close(); err != nil {
+								flog.Debugf("error closing excess connection: %v", err)
+							}
 						}
 					}
 				default:
