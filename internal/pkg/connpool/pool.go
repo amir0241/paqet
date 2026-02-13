@@ -186,7 +186,7 @@ func (p *ConnPool) Close() error {
 // cleanupIdleConns periodically removes idle connections from the pool
 func (p *ConnPool) cleanupIdleConns() {
 	defer p.wg.Done()
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(60 * time.Second) // Increased from 30s to 60s to reduce CPU overhead
 	defer ticker.Stop()
 
 	for {
