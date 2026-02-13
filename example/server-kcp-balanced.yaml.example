@@ -1,0 +1,145 @@
+# paqet Server Configuration - Balanced KCP Settings
+# This configuration provides a good balance between speed and reliability
+# Suitable for most networks including 100-500 Mbps connections
+# Role must be explicitly set
+role: "server"
+
+# Logging configuration
+log:
+  level: "info"  # none, debug, info, warn, error, fatal
+
+# Server listen configuration
+listen:
+  addr: ":9999"   # CHANGE ME: Server listen port (must match network.ipv4.addr port)
+                  # WARNING: Do not use standard ports (80, 443, etc.) as iptables rules
+                  # can affect outgoing server connections.
+
+# Network interface settings
+network:
+  interface: "eth0"                          # CHANGE ME: Network interface (eth0, ens3, en0, etc.)
+  # guid: "\Device\NPF_{...}"                # Windows only (Npcap).
+
+  # IPv4 configuration
+  ipv4:
+    addr: "10.0.0.100:9999"                  # CHANGE ME: Server IPv4 and port (port must match listen.addr)
+    router_mac: "aa:bb:cc:dd:ee:ff"          # CHANGE ME: Gateway/router MAC address
+
+  # IPv6 configuration (optional)
+  # ipv6:
+  #   addr: "[::1]:9999"                     # CHANGE ME: Server IPv6 and port (or remove if not using IPv6)
+  #   router_mac: "aa:bb:cc:dd:ee:ff"        # CHANGE ME: Gateway/router MAC address
+
+  # TCP flags for packet crafting
+  tcp:
+    local_flag: ["PA"]                       # Local TCP flags (Push+Ack default)
+
+  # PCAP settings - use defaults (optimized for balanced performance)
+  # pcap:
+  #   sockbuf: 16777216                      # 16MB buffer (default for server)
+  #   send_queue_size: 5000                  # Queue size (default)
+
+# Performance settings - use defaults (optimized for balanced performance)
+# performance:
+#   max_concurrent_streams: 50000           # Default for server
+#   packet_workers: 0                       # 0 = auto (use CPU count)
+#   stream_worker_pool_size: 10000          # Default for server
+#   enable_connection_pooling: false        # Disabled by default
+
+# Transport protocol configuration
+transport:
+  protocol: "kcp"  # Transport protocol: "kcp" or "quic"
+  conn: 1          # Single connection (recommended for most use cases)
+  
+  # Use default buffers (optimized for balanced performance)
+  # tcpbuf: 65536  # 64KB TCP buffer (default)
+  # udpbuf: 16384  # 16KB UDP buffer (default)
+
+  # KCP protocol settings - balanced for reliability and speed
+  kcp:
+    mode: "fast2"               # Balanced mode: moderate latency, good throughput
+                                # fast2 = nodelay:1, interval:20ms, resend:2, nocongestion:1
+                                # More reliable than fast3, faster than fast
+    
+    # Use manual mode only if you need fine-tuned control
+    # Manual mode parameters (only used when mode="manual")
+    # nodelay: 0                # 0 for better reliability, 1 for lower latency
+    # interval: 30              # 20-40ms is balanced (lower = faster but more CPU)
+    # resend: 2                 # Standard fast retransmit
+    # nocongestion: 1           # Disable congestion control for better speed
+    # wdelay: true              # Batch writes for efficiency
+    # acknodelay: false         # Batch ACKs for bandwidth efficiency
+
+    # Window sizes - moderate for balanced performance
+    # These defaults work well for 100-500 Mbps connections
+    # mtu: 1350                 # Standard MTU (default)
+    # rcvwnd: 1024              # Receive window (default for server)
+    # sndwnd: 1024              # Send window (default for server)
+
+    # Encryption settings  
+    block: "aes"                        # AES encryption (good balance of speed/security)
+    key: "your-secret-key-here"         # CHANGE ME: Secret key (must match client)
+
+    # Buffer settings - use defaults (4MB SMUX, 2MB stream)
+    # smuxbuf: 4194304          # 4MB SMUX buffer (default)
+    # streambuf: 2097152        # 2MB stream buffer (default)
+
+# Forward Error Correction (FEC) - DISABLED by default
+# Enable only if you have significant packet loss (>1%)
+#   dshard: 10    # Data shards for FEC  
+#   pshard: 3     # Parity shards for FEC
+
+# ============================================================================
+# IMPORTANT: Server Firewall Configuration Required!
+# ============================================================================
+# 
+# Since paqet uses pcap to bypass standard firewalls, you MUST configure
+# iptables on the server to prevent kernel interference:
+#
+# sudo iptables -t raw -A PREROUTING -p tcp --dport 9999 -j NOTRACK
+# sudo iptables -t raw -A OUTPUT -p tcp --sport 9999 -j NOTRACK  
+# sudo iptables -t mangle -A OUTPUT -p tcp --sport 9999 --tcp-flags RST RST -j DROP
+#
+# Replace 9999 with your actual listen port.
+#
+# To make rules persistent:
+# - Debian/Ubuntu: sudo apt install iptables-persistent && sudo netfilter-persistent save
+# - RHEL/CentOS: sudo service iptables save
+#
+# ============================================================================
+# BALANCED CONFIGURATION NOTES
+# ============================================================================
+#
+# This configuration is optimized for:
+# - General use: 100-500 Mbps connections
+# - Moderate latency: 20-100ms RTT
+# - Low to moderate packet loss: <1%
+# - Most VPS and cloud servers
+# - Moderate concurrent connections
+#
+# Key features:
+# 1. Single connection (conn: 1) - simpler, no reordering issues
+# 2. fast2 mode - balanced between speed and reliability
+# 3. Default window sizes (1024 server) - works for most networks
+# 4. Default buffers - optimized by the project
+# 5. Standard MTU (1350) - compatible with most networks
+# 6. Auto packet workers - scales with CPU cores
+#
+# When to use this vs other configs:
+# - Use THIS for: Most servers, 100-500 Mbps, typical networks
+# - Use server.yaml.example for: Basic setup, learning
+# - Use server-kcp-1gbps.yaml.example for: Gigabit+ dedicated links, <50ms RTT, <0.5% loss
+#
+# Troubleshooting:
+# - If speed is still low: Check network quality first (ping, packet loss)
+# - If you need more speed: Try fast3 mode or increase window sizes gradually
+# - If you get packet loss: Try fast mode or enable FEC
+# - For many clients: Increase max_concurrent_streams
+# - For very high bandwidth: See server-kcp-1gbps.yaml.example
+#
+# System tuning (optional, helps with performance):
+# - Increase OS UDP buffer sizes:
+#   sysctl -w net.core.rmem_max=16777216
+#   sysctl -w net.core.wmem_max=16777216
+# - Increase file descriptor limits:
+#   ulimit -n 65535
+# ============================================================================

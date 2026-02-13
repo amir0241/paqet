@@ -2,11 +2,40 @@
 
 This guide explains how to configure paqet with KCP protocol to achieve 1Gbps throughput on high-bandwidth, low-loss networks.
 
+> **⚠️ IMPORTANT WARNING**
+>
+> The 1Gbps configuration is **highly aggressive** and can **REDUCE your bandwidth** if used incorrectly!
+>
+> **DO NOT use this configuration** unless:
+> - ✅ You have a dedicated 1Gbps+ link
+> - ✅ Your network has <50ms latency
+> - ✅ Your network has <0.5% packet loss
+> - ✅ You have tested and confirmed poor performance with balanced configs
+>
+> **For most users**, use the **balanced configuration** instead:
+> - [`example/client-kcp-balanced.yaml.example`](../example/client-kcp-balanced.yaml.example)
+> - [`example/server-kcp-balanced.yaml.example`](../example/server-kcp-balanced.yaml.example)
+
 ## Overview
 
-The standard KCP configurations included with paqet are optimized for typical use cases with moderate bandwidth and variable network conditions. For high-bandwidth scenarios (1Gbps+), specific tuning is required to fully utilize the available capacity.
+The standard KCP configurations included with paqet are optimized for typical use cases with moderate bandwidth and variable network conditions. The **1Gbps configuration is extremely aggressive** and requires perfect network conditions to work properly. Using it on typical networks can cause packet storms, congestion, and reduced throughput.
+
+## When to Use Which Configuration
+
+| Configuration | Best For | Bandwidth | Latency | Loss |
+|--------------|----------|-----------|---------|------|
+| **balanced** | **Most users** | 100-500 Mbps | <100ms | <1% |
+| standard (client.yaml.example) | Basic setup | 50-200 Mbps | <200ms | <2% |
+| **1Gbps** (this guide) | **Dedicated gigabit links** | 500-1500 Mbps | <50ms | <0.5% |
+
+**Start with balanced config** - only move to 1Gbps if you:
+1. Verified your network meets the requirements
+2. Tested balanced config and it's truly limiting you
+3. Have the CPU/system resources to handle the load
 
 ## Quick Start
+
+⚠️ **Only proceed if you meet the requirements above!**
 
 Use the provided example configurations:
 
@@ -301,7 +330,54 @@ If you see drops, increase `send_queue_size` and `sockbuf`.
 
 ## Troubleshooting
 
+### ⚠️ BANDWIDTH IS SLOWER WITH 1GBPS CONFIG
+
+**This is the most common issue!** The 1Gbps config is too aggressive for your network.
+
+**Immediate solution**: Switch to the **balanced configuration**:
+```bash
+# Use the balanced config instead
+cp example/client-kcp-balanced.yaml.example config.yaml
+# Edit your network settings and test again
+```
+
+**Why this happens**:
+1. **Too aggressive retransmission** - Causes packet storms and congestion
+2. **No congestion control** - Overwhelms routers/switches
+3. **Multiple connections** - Causes packet reordering and drops
+4. **Excessive window sizes** - Causes bufferbloat and latency spikes
+5. **High CPU overhead** - Can't keep up with packet processing
+
+**Symptoms of over-aggressive configuration**:
+- Bandwidth is LOWER than with default config
+- High packet loss (>1%)
+- Latency spikes or jitter
+- Router/switch becomes unresponsive
+- CPU usage is very high
+- Connection drops or timeouts
+
+**How to fix**:
+1. ✅ **Start with balanced config** - Works for 100-500 Mbps
+2. If still slow, try standard config (client.yaml.example)
+3. Test your network quality:
+   ```bash
+   # Check latency
+   ping -c 100 YOUR_SERVER_IP
+   
+   # Check packet loss
+   ping -c 1000 -i 0.2 YOUR_SERVER_IP | grep loss
+   ```
+4. Only use 1Gbps config if:
+   - Balanced config truly limits you (confirmed with testing)
+   - Your network has <50ms latency and <0.5% loss
+   - You have a dedicated high-quality link
+
 ### Not Reaching 1Gbps
+
+⚠️ **First, are you SURE you should be using the 1Gbps config?**
+- If not, switch to balanced config (see above)
+
+If you've confirmed your network meets the requirements:
 
 **Check CPU**: Is paqet using 100% CPU?
 - Yes: Add more `packet_workers` or use faster CPU
@@ -323,6 +399,8 @@ If you see drops, increase `send_queue_size` and `sockbuf`.
 
 ### High Latency
 
+**Check if config is too aggressive**: Try balanced config
+
 **Reduce interval**: Try `interval: 5` or `interval: 20`
 
 **Check network**: KCP adds some latency overhead
@@ -331,11 +409,20 @@ If you see drops, increase `send_queue_size` and `sockbuf`.
 
 ### Packet Drops
 
+**Check if config is too aggressive**: Try balanced config first!
+
 **Increase PCAP buffers**: Double `sockbuf` and `send_queue_size`
 
 **Check system buffers**: Verify kernel UDP buffer settings
 
 **Check CPU**: High CPU = can't process packets fast enough
+
+**Enable FEC**: If packet loss is consistent (>0.5%), enable FEC:
+```yaml
+kcp:
+  dshard: 10
+  pshard: 3
+```
 
 ## Comparison with QUIC
 

@@ -233,12 +233,19 @@ paqet uses unified YAML configuration for client and server. The `role` field mu
 
 **For complete parameter documentation, see the example files:**
 
+**Recommended configurations:**
+- [`example/client-kcp-balanced.yaml.example`](example/client-kcp-balanced.yaml.example) - **RECOMMENDED** for most users (100-500 Mbps)
+- [`example/server-kcp-balanced.yaml.example`](example/server-kcp-balanced.yaml.example) - **RECOMMENDED** for most servers (100-500 Mbps)
+
+**Standard configurations:**
 - [`example/client.yaml.example`](example/client.yaml.example) - Client configuration reference (KCP)
 - [`example/server.yaml.example`](example/server.yaml.example) - Server configuration reference (KCP)
-- [`example/client-kcp-1gbps.yaml.example`](example/client-kcp-1gbps.yaml.example) - Client optimized for 1Gbps+ bandwidth (KCP)
-- [`example/server-kcp-1gbps.yaml.example`](example/server-kcp-1gbps.yaml.example) - Server optimized for 1Gbps+ bandwidth (KCP)
 - [`example/client-quic.yaml.example`](example/client-quic.yaml.example) - Client configuration with QUIC
 - [`example/server-quic.yaml.example`](example/server-quic.yaml.example) - Server configuration with QUIC
+
+**Advanced/specialized configurations:**
+- [`example/client-kcp-1gbps.yaml.example`](example/client-kcp-1gbps.yaml.example) - ⚠️ Advanced: 1Gbps+ (requires perfect network, see warnings in config)
+- [`example/server-kcp-1gbps.yaml.example`](example/server-kcp-1gbps.yaml.example) - ⚠️ Advanced: 1Gbps+ (requires perfect network, see warnings in config)
 
 ### Transport Protocols
 
@@ -247,7 +254,7 @@ paqet supports two transport protocols:
 - **KCP** - UDP-based protocol optimized for lossy networks. Best for high packet loss scenarios and real-time applications.
 - **QUIC** - Modern IETF standard protocol optimized for high bandwidth and many concurrent connections. Best for production deployments with good network conditions.
 
-**For high-bandwidth KCP deployments (1Gbps+), see [`docs/KCP-1GBPS.md`](docs/KCP-1GBPS.md) for optimized configurations and tuning guide.**
+**⚠️ For high-bandwidth KCP deployments (1Gbps+)**: The 1Gbps configuration is highly aggressive and can **reduce bandwidth** if used incorrectly. See [`docs/KCP-1GBPS.md`](docs/KCP-1GBPS.md) for requirements, warnings, and when to use it. **Most users should use the balanced configuration instead.**
 
 **See [`docs/QUIC.md`](docs/QUIC.md) for detailed QUIC documentation, performance tuning, and migration guide.**
 

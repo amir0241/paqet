@@ -1,0 +1,133 @@
+# paqet Client Configuration - Balanced KCP Settings
+# This configuration provides a good balance between speed and reliability
+# Suitable for most networks including 100-500 Mbps connections
+# Role must be explicitly set
+role: "client"
+
+# Logging configuration
+log:
+  level: "info"  # none, debug, info, warn, error, fatal
+
+# SOCKS5 proxy configuration (client mode)
+socks5:
+  - listen: "127.0.0.1:1080"    # SOCKS5 proxy listen address
+    username: ""                # Optional SOCKS5 authentication
+    password: ""                # Optional SOCKS5 authentication
+
+# Port forwarding configuration (can be used alongside SOCKS5)
+# forward:
+#   - listen: "127.0.0.1:8080"  # Local port to listen on
+#     target: "127.0.0.1:80"    # Target to forward to (via server)
+#     protocol: "tcp"           # Protocol (tcp/udp)
+
+# Network interface settings
+network:
+  interface: "en0"                          # CHANGE ME: Network interface (en0, eth0, wlan0, etc.)
+  # guid: "\Device\NPF_{...}"               # Windows only (Npcap).
+
+  # IPv4 configuration
+  ipv4:
+    addr: "192.168.1.100:0"                 # CHANGE ME: Local IP (use port 0 for random port)
+    router_mac: "aa:bb:cc:dd:ee:ff"         # CHANGE ME: Gateway/router MAC address
+
+  # IPv6 configuration (optional)
+  # ipv6:
+  #   addr: "[2001:db8::1]:0"               # CHANGE ME: Local IPv6 address and port (optional)
+  #   router_mac: "aa:bb:cc:dd:ee:ff"       # CHANGE ME: Gateway/router MAC address for IPv6
+
+  tcp:
+    local_flag: ["PA"]                      # Local TCP flags (Push+Ack default)
+    remote_flag: ["PA"]                     # Remote TCP flags (Push+Ack default)
+
+  # PCAP settings - use defaults (optimized for balanced performance)
+  # pcap:
+  #   sockbuf: 8388608                      # 8MB buffer (default for client)
+  #   send_queue_size: 5000                 # Queue size (default)
+
+# Server connection settings
+server:
+  addr: "10.0.0.100:9999"  # CHANGE ME: paqet server address and port
+
+# Performance settings - use defaults (optimized for balanced performance)
+# performance:
+#   max_concurrent_streams: 10000           # Default for client
+#   packet_workers: 0                       # 0 = auto (use CPU count)
+#   stream_worker_pool_size: 5000           # Default for client
+
+# Transport protocol configuration
+transport:
+  protocol: "kcp"  # Transport protocol: "kcp" or "quic"
+  conn: 1          # Single connection (recommended for most use cases)
+  
+  # Use default buffers (optimized for balanced performance)
+  # tcpbuf: 65536  # 64KB TCP buffer (default)
+  # udpbuf: 16384  # 16KB UDP buffer (default)
+
+  # KCP protocol settings - balanced for reliability and speed
+  kcp:
+    mode: "fast2"               # Balanced mode: moderate latency, good throughput
+                                # fast2 = nodelay:1, interval:20ms, resend:2, nocongestion:1
+                                # More reliable than fast3, faster than fast
+    
+    # Use manual mode only if you need fine-tuned control
+    # Manual mode parameters (only used when mode="manual")
+    # nodelay: 0                # 0 for better reliability, 1 for lower latency
+    # interval: 30              # 20-40ms is balanced (lower = faster but more CPU)
+    # resend: 2                 # Standard fast retransmit
+    # nocongestion: 1           # Disable congestion control for better speed
+    # wdelay: true              # Batch writes for efficiency
+    # acknodelay: false         # Batch ACKs for bandwidth efficiency
+
+    # Window sizes - moderate for balanced performance
+    # These defaults work well for 100-500 Mbps connections
+    # mtu: 1350                 # Standard MTU (default)
+    # rcvwnd: 512               # Receive window (default for client)
+    # sndwnd: 512               # Send window (default for client)
+
+    # Encryption settings
+    block: "aes"                        # AES encryption (good balance of speed/security)
+    key: "your-secret-key-here"         # CHANGE ME: Secret key (must match server)
+
+    # Buffer settings - use defaults (4MB SMUX, 2MB stream)
+    # smuxbuf: 4194304          # 4MB SMUX buffer (default)
+    # streambuf: 2097152        # 2MB stream buffer (default)
+
+# Forward Error Correction (FEC) - DISABLED by default
+# Enable only if you have significant packet loss (>1%)
+#   dshard: 10    # Data shards for FEC
+#   pshard: 3     # Parity shards for FEC
+
+# ============================================================================
+# BALANCED CONFIGURATION NOTES
+# ============================================================================
+#
+# This configuration is optimized for:
+# - General use: 100-500 Mbps connections
+# - Moderate latency: 20-100ms RTT
+# - Low to moderate packet loss: <1%
+# - Most home/office networks
+# - VPS and cloud servers
+#
+# Key features:
+# 1. Single connection (conn: 1) - simpler, no reordering issues
+# 2. fast2 mode - balanced between speed and reliability
+# 3. Default window sizes (512) - works for most networks
+# 4. Default buffers - optimized by the project
+# 5. Standard MTU (1350) - compatible with most networks
+#
+# When to use this vs other configs:
+# - Use THIS for: Most users, 100-500 Mbps, typical networks
+# - Use client.yaml.example for: Basic setup, learning
+# - Use client-kcp-1gbps.yaml.example for: Gigabit+ dedicated links, <50ms RTT, <0.5% loss
+#
+# Troubleshooting:
+# - If speed is still low: Check network quality first (ping, packet loss)
+# - If you need more speed: Try fast3 mode or increase window sizes gradually
+# - If you get packet loss: Try fast mode or enable FEC
+# - For very high bandwidth: See client-kcp-1gbps.yaml.example
+#
+# System tuning (optional, helps with performance):
+# - Increase OS UDP buffer sizes:
+#   sysctl -w net.core.rmem_max=8388608
+#   sysctl -w net.core.wmem_max=8388608
+# ============================================================================

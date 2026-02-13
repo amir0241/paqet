@@ -1,5 +1,22 @@
 # paqet Server Configuration - Optimized for 1Gbps Bandwidth with KCP
-# This configuration is tuned for high-bandwidth (1Gbps) low-loss networks
+# ============================================================================
+# ⚠️⚠️⚠️ WARNING: THIS CONFIG CAN REDUCE YOUR BANDWIDTH! ⚠️⚠️⚠️
+# ============================================================================
+# This configuration is EXTREMELY AGGRESSIVE and requires perfect network
+# conditions. Using it on typical networks will REDUCE your bandwidth!
+#
+# DO NOT USE unless ALL of these are true:
+#   ✅ You have a dedicated 1Gbps+ link (not shared/residential)
+#   ✅ Client networks have <50ms latency
+#   ✅ Network has <0.5% packet loss
+#   ✅ You tested balanced config and it truly limits you
+#
+# FOR MOST USERS: Use server-kcp-balanced.yaml.example instead!
+#
+# If clients experience SLOWER speeds with this config, switch to balanced:
+#   cp example/server-kcp-balanced.yaml.example config.yaml
+# ============================================================================
+
 # Role must be explicitly set
 role: "server"
 
