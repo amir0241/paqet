@@ -1,0 +1,160 @@
+# paqet Server Configuration - Optimized for 1Gbps Bandwidth with KCP
+# This configuration is tuned for high-bandwidth (1Gbps) low-loss networks
+# Role must be explicitly set
+role: "server"
+
+# Logging configuration
+log:
+  level: "info"  # none, debug, info, warn, error, fatal
+
+# Server listen configuration
+listen:
+  addr: ":9999"   # CHANGE ME: Server listen port (must match network.ipv4.addr port)
+                  # WARNING: Do not use standard ports (80, 443, etc.) as iptables rules
+                  # can affect outgoing server connections.
+
+# Network interface settings
+network:
+  interface: "eth0"                          # CHANGE ME: Network interface (eth0, ens3, en0, etc.)
+  # guid: "\Device\NPF_{...}"                # Windows only (Npcap).
+
+  # IPv4 configuration
+  ipv4:
+    addr: "10.0.0.100:9999"                  # CHANGE ME: Server IPv4 and port (port must match listen.addr)
+    router_mac: "aa:bb:cc:dd:ee:ff"          # CHANGE ME: Gateway/router MAC address
+
+  # IPv6 configuration (optional)
+  # ipv6:
+  #   addr: "[::1]:9999"                     # CHANGE ME: Server IPv6 and port (or remove if not using IPv6)
+  #   router_mac: "aa:bb:cc:dd:ee:ff"        # CHANGE ME: Gateway/router MAC address
+
+  # TCP flags for packet crafting
+  tcp:
+    local_flag: ["PA"]                       # Local TCP flags (Push+Ack default)
+
+  # PCAP settings optimized for high bandwidth server
+  pcap:
+    sockbuf: 67108864                        # 64MB buffer for high server load
+    send_queue_size: 15000                   # Very large queue for server burst handling
+    max_retries: 3                           # Max retry attempts on write failure
+    initial_backoff_ms: 10                   # Initial retry backoff in ms
+    max_backoff_ms: 1000                     # Maximum retry backoff in ms
+
+# Performance settings optimized for 1Gbps server throughput
+performance:
+  max_concurrent_streams: 50000             # Very high concurrency for server
+  packet_workers: 16                        # More workers for server multi-core processing
+  stream_worker_pool_size: 20000            # Large worker pool for server
+  enable_connection_pooling: true           # Enable pooling for backend connections
+  tcp_connection_pool_size: 500             # Large pool for many targets
+  tcp_connection_idle_timeout: 90           # Keep connections alive
+  max_retry_attempts: 5
+  retry_initial_backoff_ms: 100
+  retry_max_backoff_ms: 10000
+
+# Transport protocol configuration
+transport:
+  protocol: "kcp"  # Transport protocol: "kcp" or "quic"
+  conn: 4          # Multiple connections (1-8) for load distribution at high bandwidth
+  
+  # Large buffers for high bandwidth
+  tcpbuf: 262144   # 256KB TCP buffer for maximum throughput
+  udpbuf: 65536    # 64KB UDP buffer for KCP packets
+
+  # KCP protocol settings optimized for 1Gbps bandwidth
+  kcp:
+    mode: "manual"              # Manual mode for fine-tuned control
+    
+    # Manual mode parameters optimized for high bandwidth, low latency
+    nodelay: 1                  # Enable for lower latency & aggressive retransmission
+    interval: 10                # 10ms update interval for responsiveness
+    resend: 2                   # Fast retransmit after 2 ACK skips
+    nocongestion: 1             # Disable congestion control for maximum speed
+    wdelay: false               # Flush immediately for low latency
+    acknodelay: true            # Send ACKs immediately
+
+    # Window sizes maximized for 1Gbps bandwidth
+    # Bandwidth-Delay Product (BDP) calculation:
+    # For 1Gbps with 50ms RTT: BDP = (1000 Mbps * 0.05s) / 8 = 6.25 MB
+    # With MTU 1400, need: 6.25MB / 1400 = ~4500 packets in flight
+    # We use maximum window size (32768) which allows ~45MB in flight
+    mtu: 1400                   # High MTU (close to standard 1500, with overhead)
+    rcvwnd: 32768               # Maximum receive window (32768 * 1400 = ~45MB)
+    sndwnd: 32768               # Maximum send window (32768 * 1400 = ~45MB)
+
+    # Encryption settings  
+    block: "aes"                        # AES encryption (good balance of speed/security)
+    key: "your-secret-key-here"         # CHANGE ME: Secret key (must match client)
+
+    # Buffer settings optimized for high bandwidth
+    smuxbuf: 33554432           # 32MB SMUX buffer for high throughput
+    streambuf: 16777216         # 16MB stream buffer for large transfers
+
+# Forward Error Correction (FEC) - DISABLED for 1Gbps on good networks
+# FEC adds overhead and is unnecessary on low-loss high-bandwidth links
+# Enable only if your network has significant packet loss (>1%)
+#   dshard: 10    # Data shards for FEC  
+#   pshard: 3     # Parity shards for FEC
+
+# ============================================================================
+# IMPORTANT: Server Firewall Configuration Required!
+# ============================================================================
+# 
+# Since paqet uses pcap to bypass standard firewalls, you MUST configure
+# iptables on the server to prevent kernel interference:
+#
+# sudo iptables -t raw -A PREROUTING -p tcp --dport 9999 -j NOTRACK
+# sudo iptables -t raw -A OUTPUT -p tcp --sport 9999 -j NOTRACK  
+# sudo iptables -t mangle -A OUTPUT -p tcp --sport 9999 --tcp-flags RST RST -j DROP
+#
+# Replace 9999 with your actual listen port.
+#
+# To make rules persistent:
+# - Debian/Ubuntu: sudo apt install iptables-persistent && sudo netfilter-persistent save
+# - RHEL/CentOS: sudo service iptables save
+#
+# ============================================================================
+# CONFIGURATION NOTES FOR 1Gbps THROUGHPUT
+# ============================================================================
+#
+# This configuration is optimized for:
+# - High bandwidth: 1Gbps+ capable links
+# - Low latency: <50ms RTT networks
+# - Low packet loss: <0.5% loss rate
+# - High concurrent connections on server
+#
+# Key optimizations:
+# 1. Maximum KCP window sizes (32768) for high bandwidth-delay product
+# 2. Large MTU (1400) to reduce per-packet overhead
+# 3. Multiple connections (conn: 4) for load distribution
+# 4. Aggressive retransmission (nodelay: 1, interval: 10, resend: 2)
+# 5. No congestion control (nocongestion: 1) for maximum speed
+# 6. Large buffers (256KB TCP, 64KB UDP, 32MB SMUX)
+# 7. Many parallel packet workers (16 workers) for server multi-core systems
+# 8. Very high PCAP buffer (64MB) to handle server bursts
+# 9. Connection pooling enabled for efficient backend connections
+# 10. High concurrency limits (50000 streams) for server scale
+#
+# For different network conditions:
+# - High latency (>100ms): Increase rcvwnd/sndwnd even more if possible
+# - High loss (>1%): Enable FEC (dshard/pshard) and consider fast2/fast3 mode
+# - Lower bandwidth: Reduce window sizes and buffers proportionally
+# - More clients: Increase max_concurrent_streams and pool sizes
+#
+# System tuning recommendations for servers:
+# - Increase OS UDP buffer sizes:
+#   sysctl -w net.core.rmem_max=67108864
+#   sysctl -w net.core.wmem_max=67108864
+#   sysctl -w net.core.rmem_default=16777216
+#   sysctl -w net.core.wmem_default=16777216
+# - Increase file descriptor limits: ulimit -n 65535
+# - Monitor CPU usage: May need to adjust packet_workers based on cores
+# - Monitor memory usage: Large buffers * many connections = high memory
+#
+# To make sysctl changes persistent, add to /etc/sysctl.conf:
+#   net.core.rmem_max = 67108864
+#   net.core.wmem_max = 67108864
+#   net.core.rmem_default = 16777216
+#   net.core.wmem_default = 16777216
+# Then run: sudo sysctl -p
+# ============================================================================
