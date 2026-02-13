@@ -61,11 +61,17 @@ func (h *Handler) handleTCPConnect(conn *net.TCPConn, r *socks5.Request) error {
 	errCh := make(chan error, 2)
 	go func() {
 		err := buffer.CopyT(conn, strm)
-		errCh <- err
+		select {
+		case errCh <- err:
+		case <-h.ctx.Done():
+		}
 	}()
 	go func() {
 		err := buffer.CopyT(strm, conn)
-		errCh <- err
+		select {
+		case errCh <- err:
+		case <-h.ctx.Done():
+		}
 	}()
 
 	select {
@@ -73,10 +79,9 @@ func (h *Handler) handleTCPConnect(conn *net.TCPConn, r *socks5.Request) error {
 		if err != nil {
 			flog.Errorf("SOCKS5 stream %d failed for %s -> %s: %v", strm.SID(), conn.RemoteAddr(), r.Address(), err)
 		}
+		return err
 	case <-h.ctx.Done():
 		flog.Debugf("SOCKS5 connection %s -> %s closed due to shutdown", conn.RemoteAddr(), r.Address())
+		return h.ctx.Err()
 	}
-
-	flog.Debugf("SOCKS5 connection %s -> %s closed", conn.RemoteAddr(), r.Address())
-	return nil
 }

@@ -74,9 +74,9 @@ func (p *Performance) setDefaults(role string) {
 
 	if p.StreamWorkerPoolSize == 0 {
 		if role == "server" {
-			p.StreamWorkerPoolSize = 5000 // Larger pool for servers
+			p.StreamWorkerPoolSize = 10000 // Increased from 5000 for better concurrency
 		} else {
-			p.StreamWorkerPoolSize = 2000
+			p.StreamWorkerPoolSize = 5000 // Increased from 2000 for better concurrency
 		}
 	}
 

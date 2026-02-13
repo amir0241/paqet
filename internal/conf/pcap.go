@@ -16,13 +16,13 @@ type PCAP struct {
 func (p *PCAP) setDefaults(role string) {
 	if p.Sockbuf == 0 {
 		if role == "server" {
-			p.Sockbuf = 8 * 1024 * 1024
+			p.Sockbuf = 16 * 1024 * 1024 // Increased from 8MB to 16MB for better packet buffering
 		} else {
-			p.Sockbuf = 4 * 1024 * 1024
+			p.Sockbuf = 8 * 1024 * 1024 // Increased from 4MB to 8MB for better packet buffering
 		}
 	}
 	if p.SendQueueSize == 0 {
-		p.SendQueueSize = 1000
+		p.SendQueueSize = 5000 // Increased from 1000 to 5000 for better burst handling
 	}
 	if p.MaxRetries == 0 {
 		p.MaxRetries = 3

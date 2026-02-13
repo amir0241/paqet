@@ -52,11 +52,17 @@ func (s *Server) handleTCP(ctx context.Context, strm tnet.Strm, addr string) err
 	errChan := make(chan error, 2)
 	go func() {
 		err := buffer.CopyT(conn, strm)
-		errChan <- err
+		select {
+		case errChan <- err:
+		case <-ctx.Done():
+		}
 	}()
 	go func() {
 		err := buffer.CopyT(strm, conn)
-		errChan <- err
+		select {
+		case errChan <- err:
+		case <-ctx.Done():
+		}
 	}()
 
 	select {
@@ -70,6 +76,7 @@ func (s *Server) handleTCP(ctx context.Context, strm tnet.Strm, addr string) err
 			return err
 		}
 	case <-ctx.Done():
+		return ctx.Err()
 	}
 	return nil
 }

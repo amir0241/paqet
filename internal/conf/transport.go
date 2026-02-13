@@ -20,13 +20,13 @@ func (t *Transport) setDefaults(role string) {
 	}
 
 	if t.TCPBuf == 0 {
-		t.TCPBuf = 8 * 1024
+		t.TCPBuf = 64 * 1024 // Increased from 8KB to 64KB for better throughput
 	}
 	if t.TCPBuf < 4*1024 {
 		t.TCPBuf = 4 * 1024
 	}
 	if t.UDPBuf == 0 {
-		t.UDPBuf = 4 * 1024
+		t.UDPBuf = 16 * 1024 // Increased from 4KB to 16KB for better packet handling
 	}
 	if t.UDPBuf < 2*1024 {
 		t.UDPBuf = 2 * 1024
