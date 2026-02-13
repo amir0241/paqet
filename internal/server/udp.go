@@ -29,11 +29,17 @@ func (s *Server) handleUDP(ctx context.Context, strm tnet.Strm, addr string) err
 	errChan := make(chan error, 2)
 	go func() {
 		err := buffer.CopyU(conn, strm)
-		errChan <- err
+		select {
+		case errChan <- err:
+		case <-ctx.Done():
+		}
 	}()
 	go func() {
 		err := buffer.CopyU(strm, conn)
-		errChan <- err
+		select {
+		case errChan <- err:
+		case <-ctx.Done():
+		}
 	}()
 
 	select {
@@ -43,7 +49,7 @@ func (s *Server) handleUDP(ctx context.Context, strm tnet.Strm, addr string) err
 			return err
 		}
 	case <-ctx.Done():
-		return nil
+		return ctx.Err()
 	}
 
 	return nil

@@ -78,45 +78,51 @@ func New(maxPoolSize int, idleTimeout time.Duration, factory func(context.Contex
 
 // Get retrieves a connection from the pool or creates a new one
 func (p *ConnPool) Get(ctx context.Context) (net.Conn, error) {
-	p.mu.RLock()
-	if p.closed {
+	for {
+		p.mu.RLock()
+		if p.closed {
+			p.mu.RUnlock()
+			return nil, ErrPoolClosed
+		}
 		p.mu.RUnlock()
-		return nil, ErrPoolClosed
-	}
-	p.mu.RUnlock()
 
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case pc := <-p.conns:
-		// Got a connection from pool
-		// Check if it's still valid
-		if pc.Conn == nil {
-			// Try to get another one
-			return p.Get(ctx)
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case pc := <-p.conns:
+			// Got a connection from pool
+			// Check if it's still valid
+			if pc.Conn == nil {
+				// Try to get another one (loop continues)
+				continue
+			}
+			// Test connection with a quick operation (set deadline)
+			if err := pc.SetDeadline(time.Now().Add(1 * time.Second)); err != nil {
+				// Connection is dead, close it and get a new one
+				pc.Conn.Close()
+				continue
+			}
+			// Reset deadline
+			if err := pc.SetDeadline(time.Time{}); err != nil {
+				// Failed to reset deadline, close and try again
+				pc.Conn.Close()
+				continue
+			}
+			pc.lastUsed = time.Now()
+			return pc, nil
+		default:
+			// No connection available, create new one
+			conn, err := p.factory(ctx)
+			if err != nil {
+				return nil, err
+			}
+			pc := &poolConn{
+				Conn:     conn,
+				pool:     p,
+				lastUsed: time.Now(),
+			}
+			return pc, nil
 		}
-		// Test connection with a quick operation (set deadline)
-		if err := pc.SetDeadline(time.Now().Add(1 * time.Second)); err != nil {
-			// Connection is dead, close it and get a new one
-			pc.Conn.Close()
-			return p.Get(ctx)
-		}
-		// Reset deadline
-		pc.SetDeadline(time.Time{})
-		pc.lastUsed = time.Now()
-		return pc, nil
-	default:
-		// No connection available, create new one
-		conn, err := p.factory(ctx)
-		if err != nil {
-			return nil, err
-		}
-		pc := &poolConn{
-			Conn:     conn,
-			pool:     p,
-			lastUsed: time.Now(),
-		}
-		return pc, nil
 	}
 }
 

@@ -109,11 +109,12 @@ func (c *PacketConn) WriteTo(data []byte, addr net.Addr) (n int, err error) {
 func (c *PacketConn) Close() error {
 	c.cancel()
 
+	// Close handles synchronously to ensure proper cleanup
 	if c.sendHandle != nil {
-		go c.sendHandle.Close()
+		c.sendHandle.Close()
 	}
 	if c.recvHandle != nil {
-		go c.recvHandle.Close()
+		c.recvHandle.Close()
 	}
 
 	return nil

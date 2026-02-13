@@ -77,11 +77,17 @@ func (f *Forward) handleTCPConn(ctx context.Context, conn net.Conn) error {
 	errCh := make(chan error, 2)
 	go func() {
 		err := buffer.CopyT(conn, strm)
-		errCh <- err
+		select {
+		case errCh <- err:
+		case <-ctx.Done():
+		}
 	}()
 	go func() {
 		err := buffer.CopyT(strm, conn)
-		errCh <- err
+		select {
+		case errCh <- err:
+		case <-ctx.Done():
+		}
 	}()
 
 	select {
@@ -91,6 +97,7 @@ func (f *Forward) handleTCPConn(ctx context.Context, conn net.Conn) error {
 			return err
 		}
 	case <-ctx.Done():
+		return ctx.Err()
 	}
 
 	return nil
