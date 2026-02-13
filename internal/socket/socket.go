@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+// PacketConn implements a net.PacketConn interface using raw packet capture and injection.
+// It uses libpcap to bypass the OS network stack for sending and receiving packets.
 type PacketConn struct {
 	cfg           *conf.Network
 	sendHandle    *SendHandle
@@ -22,7 +24,8 @@ type PacketConn struct {
 	cancel context.CancelFunc
 }
 
-// &OpError{Op: "listen", Net: network, Source: nil, Addr: nil, Err: err}
+// New creates a new PacketConn for raw packet I/O on the specified network interface.
+// It initializes both send and receive handles using pcap for packet capture and injection.
 func New(ctx context.Context, cfg *conf.Network) (*PacketConn, error) {
 	if cfg.Port == 0 {
 		cfg.Port = 32768 + rand.Intn(32768)
@@ -106,6 +109,8 @@ func (c *PacketConn) WriteTo(data []byte, addr net.Addr) (n int, err error) {
 	return len(data), nil
 }
 
+// Close releases all resources associated with the PacketConn.
+// It closes both send and receive handles synchronously to ensure proper cleanup.
 func (c *PacketConn) Close() error {
 	c.cancel()
 
