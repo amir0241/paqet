@@ -257,9 +257,6 @@ transport:
   tcpbuf: 32768                  # 32KB (balanced)
   udpbuf: 8192                   # 8KB (balanced)
 ```
-  retry_initial_backoff_ms: 50   # Faster retries
-  enable_connection_pooling: false # No pooling overhead
-```
 
 ### For Resource-Constrained Systems
 
