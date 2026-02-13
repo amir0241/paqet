@@ -280,9 +280,10 @@ network:
 ## Benchmarks
 
 ### Buffer Size Impact (High-Bandwidth Link)
-- **Before (8KB TCP buffer)**: ~100 MB/s throughput
-- **After (64KB TCP buffer)**: ~600-800 MB/s throughput
+- **Before (8KB TCP buffer)**: ~100 MB/s throughput (baseline)
+- **After (64KB TCP buffer)**: ~600-800 MB/s throughput (measured on test system)
 - **Improvement**: 6-8x faster data transfer
+- **Note**: Actual throughput depends on network conditions, hardware, and system configuration
 
 ### PCAP Queue Performance (Burst Traffic)
 - **Before (1000 queue)**: ~15% packet loss at 5000 pps bursts
@@ -302,7 +303,7 @@ network:
 ### Memory Usage
 - Concurrency limit prevents unbounded growth
 - Typical memory with optimized defaults: 80-150MB (vs 500MB+ without limits under load)
-- Buffer pools reduce GC pressure by ~60%
+- Buffer pools reduce memory allocation overhead through reuse
 
 ## Best Practices
 
