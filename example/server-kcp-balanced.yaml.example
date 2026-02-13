@@ -83,10 +83,10 @@ transport:
     # smuxbuf: 4194304          # 4MB SMUX buffer (default)
     # streambuf: 2097152        # 2MB stream buffer (default)
 
-# Forward Error Correction (FEC) - DISABLED by default
-# Enable only if you have significant packet loss (>1%)
-#   dshard: 10    # Data shards for FEC  
-#   pshard: 3     # Parity shards for FEC
+    # Forward Error Correction (FEC) - DISABLED by default
+    # Enable only if you have significant packet loss (>1%)
+    # dshard: 10    # Data shards for FEC  
+    # pshard: 3     # Parity shards for FEC
 
 # ============================================================================
 # IMPORTANT: Server Firewall Configuration Required!
