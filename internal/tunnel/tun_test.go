@@ -10,8 +10,11 @@ import (
 // This test ensures that TUN works correctly with io.CopyBuffer after removing
 // the ReadFrom and WriteTo methods that were causing performance issues.
 func TestTUNBasicReadWrite(t *testing.T) {
-	// Create mock data
-	testData := []byte("test packet data")
+	// Create test data with realistic packet size (multiple KB, similar to network packets)
+	testData := make([]byte, 4096) // 4KB packet - typical network packet size
+	for i := range testData {
+		testData[i] = byte(i % 256)
+	}
 	
 	// Test that io.CopyBuffer works with basic Read/Write methods
 	// We use mock implementations since we can't create actual TUN devices in tests
@@ -31,11 +34,12 @@ func TestTUNBasicReadWrite(t *testing.T) {
 	}
 	
 	if !bytes.Equal(dst.Bytes(), testData) {
-		t.Errorf("Data mismatch: expected %q, got %q", testData, dst.Bytes())
+		t.Error("Data mismatch during copy")
 	}
 	
 	t.Log("✓ Verified: io.CopyBuffer works with types implementing only Read/Write")
 	t.Log("✓ This is the same pattern used by TUN device for high-performance data transfer")
+	t.Logf("✓ Successfully copied %d bytes using 256KB buffer pool", n)
 }
 
 // TestTUNInterfaceCompliance verifies that TUN implements required interfaces

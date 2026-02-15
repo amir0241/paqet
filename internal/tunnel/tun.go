@@ -111,16 +111,16 @@ func (t *TUN) configureDarwin() error {
 	return nil
 }
 
-// Read reads a packet from the TUN device
-// Note: This method intentionally does NOT implement io.ReaderFrom to ensure
+// Read reads a packet from the TUN device.
+// Note: TUN intentionally does NOT implement the io.ReaderFrom interface to ensure
 // that io.CopyBuffer uses the provided 256KB buffer pool instead of allocating
 // small MTU-sized buffers repeatedly, which significantly improves throughput.
 func (t *TUN) Read(buf []byte) (int, error) {
 	return t.iface.Read(buf)
 }
 
-// Write writes a packet to the TUN device
-// Note: This method intentionally does NOT implement io.WriterTo to ensure
+// Write writes a packet to the TUN device.
+// Note: TUN intentionally does NOT implement the io.WriterTo interface to ensure
 // that io.CopyBuffer uses the provided 256KB buffer pool instead of allocating
 // small MTU-sized buffers repeatedly, which significantly improves throughput.
 func (t *TUN) Write(buf []byte) (int, error) {
