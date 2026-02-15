@@ -217,6 +217,12 @@ This request will be proxied over raw TCP packets to the server, and then forwar
 
 In addition to SOCKS5 proxy mode, `paqet` supports **TUN mode**, which creates a virtual network interface on both client and server. This allows you to establish a layer 3 network tunnel between two servers, enabling direct IP routing rather than application-level proxying.
 
+> **⚠️ Important: TUN Traffic Uses Paqet Transport**
+>
+> **All TUN traffic flows through paqet's encrypted transport layer (KCP or QUIC)**. The TUN devices are virtual interfaces that serve as entry/exit points for the secure tunnel. Packets read from the TUN device are encrypted and sent through paqet's raw packet transport, just like SOCKS5 traffic. This creates a secure VPN-like tunnel where all IP packets are protected by paqet's encryption.
+>
+> For detailed architecture and packet flow diagrams, see **[`docs/TUN-ARCHITECTURE.md`](docs/TUN-ARCHITECTURE.md)**.
+
 ### Use Cases
 
 - Create a point-to-point VPN tunnel between two servers

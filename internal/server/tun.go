@@ -8,15 +8,28 @@ import (
 	"paqet/internal/tnet"
 )
 
+// handleTUNProtocol processes TUN tunnel streams from clients.
+//
+// This method handles the server-side of the TUN tunnel:
+// 1. Receives encrypted packets from the paqet stream (sent by client's TUN device)
+// 2. Decrypts them (handled by transport layer)
+// 3. Writes them to the server's TUN device
+// 4. Reads packets from server's TUN device
+// 5. Encrypts and sends them back through the paqet stream to the client
+//
+// This creates a bidirectional encrypted tunnel where IP packets are securely
+// relayed between client and server TUN devices through paqet's transport.
 func (s *Server) handleTUNProtocol(ctx context.Context, strm tnet.Strm) error {
-	flog.Infof("TUN stream %d from %s: starting tunnel relay", strm.SID(), strm.RemoteAddr())
+	flog.Infof("TUN stream %d from %s: starting tunnel relay (packets encrypted via paqet transport)", 
+		strm.SID(), strm.RemoteAddr())
 
 	if !s.cfg.TUN.Enabled || s.tun == nil {
 		flog.Errorf("TUN stream received but TUN is not enabled on server")
 		return io.ErrClosedPipe
 	}
 
-	// Start bidirectional relay between stream and TUN device
+	// Start bidirectional relay between paqet stream and TUN device
+	// All traffic through this stream is encrypted by the transport layer
 	errCh := make(chan error, 2)
 
 	// Stream -> TUN (using large buffer pool)

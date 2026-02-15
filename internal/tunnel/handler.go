@@ -9,7 +9,16 @@ import (
 	"paqet/internal/tnet"
 )
 
-// Handler manages TUN tunnel connections
+// Handler manages TUN tunnel connections.
+// 
+// The Handler creates a private network overlay by establishing a secure tunnel
+// between the client and server TUN devices using paqet's encrypted transport (KCP/QUIC).
+// All packets sent to the TUN interface are encrypted and transmitted through paqet's
+// raw TCP packet transport, creating a VPN-like layer 3 tunnel.
+//
+// Packet flow:
+//   Client TUN device -> Handler -> paqet stream (KCP/QUIC) -> Server -> Server TUN device
+//   Server TUN device -> paqet stream (KCP/QUIC) -> Handler -> Client TUN device
 type Handler struct {
 	tun    *TUN
 	client interface {
@@ -27,11 +36,22 @@ func NewHandler(tun *TUN, client interface {
 	}
 }
 
-// Start begins handling TUN traffic by creating a stream to the server
+// Start begins handling TUN traffic by creating a stream to the server.
+// 
+// This method establishes a secure tunnel through paqet's transport layer:
+// 1. Creates a new paqet stream (using KCP or QUIC transport)
+// 2. Sends PTUN protocol header to identify this as a TUN stream
+// 3. Sets up bidirectional relay between local TUN device and the paqet stream
+// 4. All IP packets read from TUN are encrypted and sent through paqet
+// 5. All packets received from paqet are decrypted and written to TUN
+//
+// This creates a private network overlay where traffic between TUN interfaces
+// is protected by paqet's encrypted transport, bypassing the host TCP/IP stack.
 func (h *Handler) Start(ctx context.Context) error {
 	flog.Infof("Starting TUN tunnel handler for %s", h.tun.Name())
 
-	// Create a TUN stream
+	// Create a TUN stream - this establishes a secure paqet connection
+	// using the configured transport (KCP or QUIC) with encryption
 	strm, err := h.client.TUN()
 	if err != nil {
 		return fmt.Errorf("failed to create TUN stream: %v", err)
