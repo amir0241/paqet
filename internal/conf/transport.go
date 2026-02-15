@@ -10,6 +10,7 @@ type Transport struct {
 	Conn     int    `yaml:"conn"`
 	TCPBuf   int    `yaml:"tcpbuf"`
 	UDPBuf   int    `yaml:"udpbuf"`
+	TUNBuf   int    `yaml:"tunbuf"`
 	KCP      *KCP   `yaml:"kcp"`
 	QUIC     *QUIC  `yaml:"quic"`
 }
@@ -30,6 +31,12 @@ func (t *Transport) setDefaults(role string) {
 	}
 	if t.UDPBuf < 2*1024 {
 		t.UDPBuf = 2 * 1024
+	}
+	if t.TUNBuf == 0 {
+		t.TUNBuf = 256 * 1024 // 256KB for high-bandwidth TUN tunnels
+	}
+	if t.TUNBuf < 8*1024 {
+		t.TUNBuf = 8 * 1024
 	}
 
 	switch t.Protocol {

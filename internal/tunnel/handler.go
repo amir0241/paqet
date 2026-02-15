@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"paqet/internal/flog"
+	"paqet/internal/pkg/buffer"
 	"paqet/internal/tnet"
 )
 
@@ -42,62 +43,22 @@ func (h *Handler) Start(ctx context.Context) error {
 	// Start bidirectional copy between TUN device and stream
 	errCh := make(chan error, 2)
 
-	// TUN -> Stream
+	// TUN -> Stream (using large buffer pool)
 	go func() {
-		buf := make([]byte, h.tun.cfg.MTU)
-		for {
-			select {
-			case <-ctx.Done():
-				errCh <- ctx.Err()
-				return
-			default:
-				n, err := h.tun.Read(buf)
-				if err != nil {
-					if err != io.EOF {
-						flog.Debugf("TUN read error: %v", err)
-					}
-					errCh <- err
-					return
-				}
-				if n > 0 {
-					if _, err := strm.Write(buf[:n]); err != nil {
-						flog.Debugf("Stream write error: %v", err)
-						errCh <- err
-						return
-					}
-					flog.Debugf("TUN -> Stream: %d bytes", n)
-				}
-			}
+		err := buffer.CopyTUN(ctx, strm, h.tun)
+		if err != nil && err != io.EOF && err != context.Canceled {
+			flog.Debugf("TUN to Stream copy error: %v", err)
 		}
+		errCh <- err
 	}()
 
-	// Stream -> TUN
+	// Stream -> TUN (using large buffer pool)
 	go func() {
-		buf := make([]byte, h.tun.cfg.MTU)
-		for {
-			select {
-			case <-ctx.Done():
-				errCh <- ctx.Err()
-				return
-			default:
-				n, err := strm.Read(buf)
-				if err != nil {
-					if err != io.EOF {
-						flog.Debugf("Stream read error: %v", err)
-					}
-					errCh <- err
-					return
-				}
-				if n > 0 {
-					if _, err := h.tun.Write(buf[:n]); err != nil {
-						flog.Debugf("TUN write error: %v", err)
-						errCh <- err
-						return
-					}
-					flog.Debugf("Stream -> TUN: %d bytes", n)
-				}
-			}
+		err := buffer.CopyTUN(ctx, h.tun, strm)
+		if err != nil && err != io.EOF && err != context.Canceled {
+			flog.Debugf("Stream to TUN copy error: %v", err)
 		}
+		errCh <- err
 	}()
 
 	// Wait for error or context cancellation
