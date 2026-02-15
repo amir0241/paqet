@@ -218,7 +218,7 @@ Attempt 5: 1600ms
 
 ### 7. KCP Smux Buffer Optimization
 
-**Problem**: Small smux buffers (4MB receive, 2MB stream) limited throughput on high-bandwidth connections, causing ~47 Mbps bottleneck when 200+ Mbps was achievable.
+**Problem**: Small smux buffers (4MB receive, 2MB stream) limited throughput on high-bandwidth connections, causing ~47 Mbps bottleneck when 200+ Mbps was possible.
 
 **Solution**: Increased default smux buffer sizes for optimal high-bandwidth performance.
 
@@ -237,7 +237,7 @@ Attempt 5: 1600ms
 
 **Benefits**:
 - Eliminates smux buffer bottleneck on high-bandwidth links
-- Better throughput for KCP transport (200+ Mbps achievable)
+- Better throughput for KCP transport (200+ Mbps possible)
 - Improved flow control under heavy load
 - Reduced latency from buffer saturation
 
