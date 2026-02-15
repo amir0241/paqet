@@ -73,6 +73,8 @@ func (s *Server) handleStrm(ctx context.Context, strm tnet.Strm) error {
 		return s.handleTCPProtocol(ctx, strm, &p)
 	case protocol.PUDP:
 		return s.handleUDPProtocol(ctx, strm, &p)
+	case protocol.PTUN:
+		return s.handleTUNProtocol(ctx, strm)
 	default:
 		flog.Errorf("unknown protocol type %d on stream %d", p.Type, strm.SID())
 		return fmt.Errorf("unknown protocol type: %d", p.Type)

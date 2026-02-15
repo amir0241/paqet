@@ -17,11 +17,13 @@ import (
 	"paqet/internal/tnet"
 	"paqet/internal/tnet/kcp"
 	"paqet/internal/tnet/quic"
+	"paqet/internal/tunnel"
 )
 
 type Server struct {
 	cfg             *conf.Conf
 	pConn           *socket.PacketConn
+	tun             *tunnel.TUN
 	wg              sync.WaitGroup
 	streamSemaphore chan struct{} // Limits concurrent stream processing
 	connPools       map[string]*connpool.ConnPool
@@ -100,6 +102,17 @@ func (s *Server) Start() error {
 		flog.Infof("Shutdown signal received, initiating graceful shutdown...")
 		cancel()
 	}()
+
+	// Initialize TUN if enabled
+	if s.cfg.TUN.Enabled {
+		tun, err := tunnel.New(&s.cfg.TUN)
+		if err != nil {
+			return fmt.Errorf("failed to initialize TUN: %v", err)
+		}
+		s.tun = tun
+		defer tun.Close()
+		flog.Infof("TUN device initialized: %s (%s)", s.cfg.TUN.Name, s.cfg.TUN.Addr)
+	}
 
 	pConn, err := socket.New(ctx, &s.cfg.Network)
 	if err != nil {

@@ -15,6 +15,7 @@ const (
 	PTCPF PType = 0x03
 	PTCP  PType = 0x04
 	PUDP  PType = 0x05
+	PTUN  PType = 0x06
 )
 
 type Proto struct {
