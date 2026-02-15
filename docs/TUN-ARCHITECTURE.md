@@ -192,10 +192,12 @@ Like SOCKS5 mode, TUN mode uses raw packet injection via pcap:
 | **Transport** | paqet (KCP/QUIC) | paqet (KCP/QUIC) |
 | **Encryption** | Yes | Yes |
 | **Layer** | Application (Layer 7) | Network (Layer 3) |
-| **Protocols** | TCP/UDP via SOCKS5 | All IP protocols (TCP, UDP, ICMP, etc.) |
+| **Protocols** | TCP/UDP via SOCKS5 | Any IP protocol* (TCP, UDP, ICMP, etc.) |
 | **Configuration** | Per-application proxy | System-wide routing |
 | **Transparency** | Requires SOCKS5 support | Transparent to applications |
 | **Raw Packets** | Yes | Yes |
+
+*Note: TUN mode forwards raw IP packets at layer 3. While it technically supports any IP protocol, practical support depends on the server's network configuration and routing capabilities. Common protocols (TCP, UDP, ICMP) work without issues.
 
 **Both modes use paqet's encrypted transport.** The difference is how applications access the tunnel:
 - SOCKS5: Applications connect to local proxy
@@ -285,9 +287,10 @@ transport:
 ## Performance Considerations
 
 ### MTU Size
-- Default: 1500 bytes
-- Recommended: 1400 bytes (accounts for paqet overhead)
-- Lower values may be needed for heavily encapsulated networks
+- System default: 1500 bytes (used by paqet when not specified)
+- Recommended: 1400 bytes or lower (accounts for paqet transport overhead)
+- Lower values may be needed for heavily encapsulated networks or high packet loss scenarios
+- Set via `tun.mtu` in configuration file
 
 ### Buffer Size
 - Uses 256KB buffer pool via `buffer.CopyTUN()`
