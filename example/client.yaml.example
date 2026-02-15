@@ -96,9 +96,9 @@ transport:
     # block: "aes"                    # Encryption: aes, aes-128, aes-128-gcm, aes-192, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, xor, sm4, none, null.
     key: "your-secret-key-here"       # CHANGE ME: Secret key (must match server)
 
-    # Buffer settings (optional)
-    # smuxbuf: 4194304       # 4MB SMUX buffer
-    # streambuf: 2097152     # 2MB stream buffer
+    # Buffer settings (optional - optimized defaults for high bandwidth)
+    # smuxbuf: 16777216      # 16MB SMUX receive buffer (default, increased from 4MB)
+    # streambuf: 16777216    # 16MB SMUX stream buffer (default, increased from 2MB)
 
   # QUIC protocol settings (used when protocol: "quic")
   # QUIC is optimized for high bandwidth and many concurrent connections
