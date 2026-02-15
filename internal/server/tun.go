@@ -21,8 +21,8 @@ func (s *Server) handleTUNProtocol(ctx context.Context, strm tnet.Strm) error {
 
 	// Stream -> TUN (using large buffer pool)
 	go func() {
-		err := buffer.CopyTUN(s.tun, strm)
-		if err != nil && err != io.EOF {
+		err := buffer.CopyTUN(ctx, s.tun, strm)
+		if err != nil && err != io.EOF && err != context.Canceled {
 			flog.Debugf("Stream to TUN copy error: %v", err)
 		}
 		errCh <- err
@@ -30,8 +30,8 @@ func (s *Server) handleTUNProtocol(ctx context.Context, strm tnet.Strm) error {
 
 	// TUN -> Stream (using large buffer pool)
 	go func() {
-		err := buffer.CopyTUN(strm, s.tun)
-		if err != nil && err != io.EOF {
+		err := buffer.CopyTUN(ctx, strm, s.tun)
+		if err != nil && err != io.EOF && err != context.Canceled {
 			flog.Debugf("TUN to Stream copy error: %v", err)
 		}
 		errCh <- err

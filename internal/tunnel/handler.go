@@ -45,8 +45,8 @@ func (h *Handler) Start(ctx context.Context) error {
 
 	// TUN -> Stream (using large buffer pool)
 	go func() {
-		err := buffer.CopyTUN(strm, h.tun)
-		if err != nil && err != io.EOF {
+		err := buffer.CopyTUN(ctx, strm, h.tun)
+		if err != nil && err != io.EOF && err != context.Canceled {
 			flog.Debugf("TUN to Stream copy error: %v", err)
 		}
 		errCh <- err
@@ -54,8 +54,8 @@ func (h *Handler) Start(ctx context.Context) error {
 
 	// Stream -> TUN (using large buffer pool)
 	go func() {
-		err := buffer.CopyTUN(h.tun, strm)
-		if err != nil && err != io.EOF {
+		err := buffer.CopyTUN(ctx, h.tun, strm)
+		if err != nil && err != io.EOF && err != context.Canceled {
 			flog.Debugf("Stream to TUN copy error: %v", err)
 		}
 		errCh <- err
