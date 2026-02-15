@@ -34,6 +34,12 @@ network:
 # Transport protocol configuration
 transport:
   protocol: "kcp"  # Transport protocol: "kcp" or "quic"
+  conn: 1          # Number of connections (1-256, default: 1)
+
+  # Buffer sizes (optional - defaults optimized for high bandwidth)
+  # tunbuf: 262144  # TUN buffer size in bytes (default: 256KB for high-speed tunnels)
+  # tcpbuf: 65536   # TCP buffer size in bytes (default: 64KB)
+  # udpbuf: 16384   # UDP buffer size in bytes (default: 16KB)
 
   # KCP protocol settings (used when protocol: "kcp")
   kcp:
