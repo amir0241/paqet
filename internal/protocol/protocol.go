@@ -15,6 +15,7 @@ const (
 	PTCPF PType = 0x03
 	PTCP  PType = 0x04
 	PUDP  PType = 0x05
+	PTUN  PType = 0x06
 )
 
 type Proto struct {
@@ -43,3 +44,21 @@ func (p *Proto) Write(w io.Writer) error {
 
 	return nil
 }
+
+// Send is a helper function to send a protocol message
+func Send(w io.Writer, ptype PType, data []byte) error {
+	addr, err := tnet.NewAddr(string(data))
+	if err != nil {
+		// If data is not a valid address, use nil
+		addr = nil
+	}
+	
+	p := &Proto{
+		Type: ptype,
+		Addr: addr,
+	}
+	return p.Write(w)
+}
+
+// TypeTUN is an alias for PTUN for convenience
+var TypeTUN = PTUN

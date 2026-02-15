@@ -1,0 +1,54 @@
+# paqet Server Configuration Example - TUN Mode
+# This configuration creates a virtual network interface tunnel between two servers
+role: "server"
+
+# Logging configuration
+log:
+  level: "info"  # none, debug, info, warn, error, fatal
+
+# Server listen configuration
+listen:
+  addr: ":9999"  # CHANGE ME: Server listen port (must match network.ipv4.addr port)
+
+# TUN interface configuration
+# This creates a virtual network interface that can be used for IP routing
+tun:
+  enabled: true              # Enable TUN mode
+  name: "tun0"               # TUN device name (default: tun0)
+  addr: "10.0.8.2/24"        # CHANGE ME: Server TUN IP address in CIDR notation
+  mtu: 1400                  # MTU size (default: 1500, reduce if experiencing issues)
+
+# Network interface settings (for the physical interface)
+network:
+  interface: "eth0"                         # CHANGE ME: Network interface (eth0, ens3, en0, etc.)
+
+  # IPv4 configuration
+  ipv4:
+    addr: "10.0.0.100:9999"                 # CHANGE ME: Server IPv4 and port (port must match listen.addr)
+    router_mac: "aa:bb:cc:dd:ee:ff"         # CHANGE ME: Gateway/router MAC address
+
+  tcp:
+    local_flag: ["PA"]                      # Local TCP flags (Push+Ack default)
+    remote_flag: ["PA"]                     # Remote TCP flags (Push+Ack default)
+
+# Transport protocol configuration
+transport:
+  protocol: "kcp"  # Transport protocol: "kcp" or "quic"
+
+  # KCP protocol settings (used when protocol: "kcp")
+  kcp:
+    mode: "fast"              # KCP mode: normal, fast, fast2, fast3, manual
+    key: "your-secret-key-here"       # CHANGE ME: Secret key (must match client)
+
+# Usage Instructions:
+# 1. Configure iptables rules to prevent kernel interference:
+#    sudo iptables -t raw -A PREROUTING -p tcp --dport 9999 -j NOTRACK
+#    sudo iptables -t raw -A OUTPUT -p tcp --sport 9999 -j NOTRACK
+#    sudo iptables -t mangle -A OUTPUT -p tcp --sport 9999 --tcp-flags RST RST -j DROP
+#
+# 2. Start the server - it will create a tun0 interface with IP 10.0.8.2
+# 3. Start the client - it will create a tun0 interface with IP 10.0.8.1
+# 4. You can now ping between servers: ping 10.0.8.1 (from server) or ping 10.0.8.2 (from client)
+# 5. To route traffic through the tunnel, add routes:
+#    - Linux: sudo ip route add 10.0.9.0/24 via 10.0.8.1 dev tun0
+#    - macOS: sudo route add -net 10.0.9.0/24 10.0.8.1
