@@ -152,7 +152,7 @@ Attempt 4: 800ms
 Attempt 5: 1600ms
 ```
 
-### 6. Buffer Size Optimization
+### 5. Buffer Size Optimization
 
 **Problem**: Small buffer sizes (8KB TCP, 4KB UDP, 1.5KB TUN) limited throughput on high-bandwidth connections.
 
@@ -185,7 +185,7 @@ Attempt 5: 1600ms
 - TUN throughput: ~40x improvement (8 Mbps → 300+ Mbps)
 - Reduced CPU usage: ~40% fewer copy operations
 
-### 7. PCAP Buffer Optimization
+### 6. PCAP Buffer Optimization
 
 **Problem**: Small PCAP buffers caused packet loss under burst traffic.
 
@@ -216,7 +216,7 @@ Attempt 5: 1600ms
 - ~50% reduction in cleanup CPU overhead
 - Near-zero packet loss under typical loads
 
-### 8. KCP Smux Buffer Optimization
+### 7. KCP Smux Buffer Optimization
 
 **Problem**: Small smux buffers (4MB receive, 2MB stream) limited throughput on high-bandwidth connections, causing ~47 Mbps bottleneck when 200+ Mbps was achievable.
 
@@ -246,7 +246,7 @@ Attempt 5: 1600ms
 - Reduced stream stalls and flow control pauses
 - Better multi-stream performance
 
-### 5. Resource Management
+### 8. Resource Management
 
 **Automatic Cleanup**:
 - Connection pool idle timeout (removes stale connections)
