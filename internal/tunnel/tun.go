@@ -2,7 +2,6 @@ package tunnel
 
 import (
 	"fmt"
-	"io"
 	"net"
 	"os/exec"
 	"paqet/internal/conf"
@@ -130,48 +129,4 @@ func (t *TUN) Close() error {
 // Name returns the interface name
 func (t *TUN) Name() string {
 	return t.cfg.Name
-}
-
-// ReadFrom implements io.ReaderFrom interface
-func (t *TUN) ReadFrom(r io.Reader) (int64, error) {
-	buf := make([]byte, t.cfg.MTU)
-	var total int64
-	for {
-		n, err := r.Read(buf)
-		if n > 0 {
-			_, writeErr := t.Write(buf[:n])
-			if writeErr != nil {
-				return total, writeErr
-			}
-			total += int64(n)
-		}
-		if err != nil {
-			if err == io.EOF {
-				return total, nil
-			}
-			return total, err
-		}
-	}
-}
-
-// WriteTo implements io.WriterTo interface
-func (t *TUN) WriteTo(w io.Writer) (int64, error) {
-	buf := make([]byte, t.cfg.MTU)
-	var total int64
-	for {
-		n, err := t.Read(buf)
-		if n > 0 {
-			written, writeErr := w.Write(buf[:n])
-			if writeErr != nil {
-				return total, writeErr
-			}
-			total += int64(written)
-		}
-		if err != nil {
-			if err == io.EOF {
-				return total, nil
-			}
-			return total, err
-		}
-	}
 }
