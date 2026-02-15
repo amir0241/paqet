@@ -2,7 +2,6 @@ package tunnel
 
 import (
 	"fmt"
-	"io"
 	"net"
 	"os/exec"
 	"paqet/internal/conf"
@@ -112,12 +111,18 @@ func (t *TUN) configureDarwin() error {
 	return nil
 }
 
-// Read reads a packet from the TUN device
+// Read reads a packet from the TUN device.
+// Note: TUN intentionally does NOT implement the io.ReaderFrom interface to ensure
+// that io.CopyBuffer uses the provided 256KB buffer pool instead of allocating
+// small MTU-sized buffers repeatedly, which significantly improves throughput.
 func (t *TUN) Read(buf []byte) (int, error) {
 	return t.iface.Read(buf)
 }
 
-// Write writes a packet to the TUN device
+// Write writes a packet to the TUN device.
+// Note: TUN intentionally does NOT implement the io.WriterTo interface to ensure
+// that io.CopyBuffer uses the provided 256KB buffer pool instead of allocating
+// small MTU-sized buffers repeatedly, which significantly improves throughput.
 func (t *TUN) Write(buf []byte) (int, error) {
 	return t.iface.Write(buf)
 }
@@ -130,48 +135,4 @@ func (t *TUN) Close() error {
 // Name returns the interface name
 func (t *TUN) Name() string {
 	return t.cfg.Name
-}
-
-// ReadFrom implements io.ReaderFrom interface
-func (t *TUN) ReadFrom(r io.Reader) (int64, error) {
-	buf := make([]byte, t.cfg.MTU)
-	var total int64
-	for {
-		n, err := r.Read(buf)
-		if n > 0 {
-			_, writeErr := t.Write(buf[:n])
-			if writeErr != nil {
-				return total, writeErr
-			}
-			total += int64(n)
-		}
-		if err != nil {
-			if err == io.EOF {
-				return total, nil
-			}
-			return total, err
-		}
-	}
-}
-
-// WriteTo implements io.WriterTo interface
-func (t *TUN) WriteTo(w io.Writer) (int64, error) {
-	buf := make([]byte, t.cfg.MTU)
-	var total int64
-	for {
-		n, err := t.Read(buf)
-		if n > 0 {
-			written, writeErr := w.Write(buf[:n])
-			if writeErr != nil {
-				return total, writeErr
-			}
-			total += int64(written)
-		}
-		if err != nil {
-			if err == io.EOF {
-				return total, nil
-			}
-			return total, err
-		}
-	}
 }
