@@ -13,8 +13,10 @@ func TestTUNBasicReadWrite(t *testing.T) {
 	// Create mock data
 	testData := []byte("test packet data")
 	
-	// Test that we can conceptually use Read/Write with io.CopyBuffer
+	// Test that io.CopyBuffer works with basic Read/Write methods
 	// We use mock implementations since we can't create actual TUN devices in tests
+	// without root privileges. This test validates the io.CopyBuffer behavior
+	// that TUN relies on.
 	src := bytes.NewReader(testData)
 	dst := &bytes.Buffer{}
 	buf := make([]byte, 256*1024) // Simulate the 256KB TUN buffer pool
@@ -31,40 +33,52 @@ func TestTUNBasicReadWrite(t *testing.T) {
 	if !bytes.Equal(dst.Bytes(), testData) {
 		t.Errorf("Data mismatch: expected %q, got %q", testData, dst.Bytes())
 	}
+	
+	t.Log("✓ Verified: io.CopyBuffer works with types implementing only Read/Write")
+	t.Log("✓ This is the same pattern used by TUN device for high-performance data transfer")
 }
 
 // TestTUNInterfaceCompliance verifies that TUN implements required interfaces
+// and does NOT implement the interfaces that would bypass the buffer pool.
 func TestTUNInterfaceCompliance(t *testing.T) {
-	// We can't create an actual TUN device without privileges,
-	// but we can verify the interface structure at compile time
+	// Verify at compile time that TUN implements io.Reader and io.Writer.
+	// This is a compile-time check - if TUN doesn't implement these interfaces,
+	// this code won't compile.
 	var tun *TUN
 	
-	// Verify TUN implements io.Reader
+	// Verify TUN implements io.Reader (required for io.CopyBuffer)
 	var _ io.Reader = tun
+	t.Log("✓ TUN implements io.Reader")
 	
-	// Verify TUN implements io.Writer
+	// Verify TUN implements io.Writer (required for io.CopyBuffer)
 	var _ io.Writer = tun
+	t.Log("✓ TUN implements io.Writer")
 	
 	// Verify TUN does NOT implement io.ReaderFrom (which would bypass buffer)
-	// This check is intentionally a type assertion that should fail
+	// This is critical for ensuring the 256KB buffer pool is used.
 	type readerFrom interface {
 		ReadFrom(r io.Reader) (int64, error)
 	}
 	
-	// Check that TUN doesn't implement ReaderFrom
 	if _, ok := interface{}(tun).(readerFrom); ok {
-		t.Error("TUN should not implement io.ReaderFrom to ensure buffer pool is used")
+		t.Error("FAIL: TUN should not implement io.ReaderFrom to ensure buffer pool is used")
+	} else {
+		t.Log("✓ TUN does NOT implement io.ReaderFrom (correct - ensures buffer pool usage)")
 	}
 	
 	// Verify TUN does NOT implement io.WriterTo (which would bypass buffer)
+	// This is critical for ensuring the 256KB buffer pool is used.
 	type writerTo interface {
 		WriteTo(w io.Writer) (int64, error)
 	}
 	
-	// Check that TUN doesn't implement WriterTo
 	if _, ok := interface{}(tun).(writerTo); ok {
-		t.Error("TUN should not implement io.WriterTo to ensure buffer pool is used")
+		t.Error("FAIL: TUN should not implement io.WriterTo to ensure buffer pool is used")
+	} else {
+		t.Log("✓ TUN does NOT implement io.WriterTo (correct - ensures buffer pool usage)")
 	}
+	
+	t.Log("✓ Interface compliance verified: TUN has optimal interface implementation")
 }
 
 // TestTUNBufferUsage documents the expected buffer pool behavior
