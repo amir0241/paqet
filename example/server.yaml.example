@@ -34,7 +34,7 @@ network:
   # PCAP settings (optional - will use defaults)
   # pcap:
     # sockbuf: 8388608                         # 8MB buffer (default for server)
-    # send_queue_size: 1000                    # Send queue size (default: 1000)
+    # send_queue_size: 10000                   # Send queue size (default: 10000)
     # max_retries: 3                           # Max retry attempts on write failure (default: 3)
     # initial_backoff_ms: 10                   # Initial retry backoff in ms (default: 10ms)
     # max_backoff_ms: 1000                     # Maximum retry backoff in ms (default: 1000ms)
@@ -49,7 +49,7 @@ transport:
 
   # KCP protocol settings (used when protocol: "kcp")
   kcp:
-    mode: "fast"              # KCP mode: normal, fast, fast2, fast3, manual
+    mode: "fast3"             # KCP mode: normal, fast, fast2, fast3, manual
 
     # Manual mode parameters (only used when mode="manual")
     # nodelay: 1              # 0=disable, 1=enable
@@ -79,16 +79,16 @@ transport:
                               # Setting true reduces latency but increases bandwidth usage
 
     # mtu: 1350              # Maximum transmission unit (50-1500)
-    # rcvwnd: 1024           # Receive window size (default for server)
-    # sndwnd: 1024           # Send window size (default for server)
+    # rcvwnd: 2048           # Receive window size (default for server)
+    # sndwnd: 2048           # Send window size (default for server)
 
     # Encryption settings  
     # block: "aes"                    # Encryption: aes, aes-128, aes-128-gcm, aes-192, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, xor, sm4, none, null.
     key: "your-secret-key-here"       # CHANGE ME: Secret key (must match client)
 
     # Buffer settings (optional)
-    # smuxbuf: 4194304       # 4MB SMUX buffer
-    # streambuf: 2097152     # 2MB stream buffer
+    # smuxbuf: 8388608       # 8MB SMUX buffer
+    # streambuf: 4194304     # 4MB stream buffer
 
   # QUIC protocol settings (used when protocol: "quic")
   # QUIC is optimized for high bandwidth and many concurrent connections

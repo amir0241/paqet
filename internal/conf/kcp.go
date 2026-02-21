@@ -33,25 +33,17 @@ type KCP struct {
 
 func (k *KCP) setDefaults(role string) {
 	if k.Mode == "" {
-		k.Mode = "fast"
+		k.Mode = "fast3"
 	}
 	if k.MTU == 0 {
 		k.MTU = 1350
 	}
 
 	if k.Rcvwnd == 0 {
-		if role == "server" {
-			k.Rcvwnd = 1024
-		} else {
-			k.Rcvwnd = 512
-		}
+		k.Rcvwnd = 2048
 	}
 	if k.Sndwnd == 0 {
-		if role == "server" {
-			k.Sndwnd = 1024
-		} else {
-			k.Sndwnd = 512
-		}
+		k.Sndwnd = 2048
 	}
 
 	// if k.Dshard == 0 {
@@ -66,10 +58,10 @@ func (k *KCP) setDefaults(role string) {
 	}
 
 	if k.Smuxbuf == 0 {
-		k.Smuxbuf = 4 * 1024 * 1024
+		k.Smuxbuf = 8 * 1024 * 1024
 	}
 	if k.Streambuf == 0 {
-		k.Streambuf = 2 * 1024 * 1024
+		k.Streambuf = 4 * 1024 * 1024
 	}
 }
 

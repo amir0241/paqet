@@ -22,7 +22,7 @@ func (p *PCAP) setDefaults(role string) {
 		}
 	}
 	if p.SendQueueSize == 0 {
-		p.SendQueueSize = 5000 // Increased from 1000 to 5000 for better burst handling
+		p.SendQueueSize = 10000 // Large queue for burst handling at 1Gbps
 	}
 	if p.MaxRetries == 0 {
 		p.MaxRetries = 3

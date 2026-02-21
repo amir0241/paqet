@@ -129,7 +129,7 @@ func TestPCAPSetDefaults(t *testing.T) {
 			role:                "server",
 			initial:             PCAP{},
 			expectedSockbuf:     16 * 1024 * 1024, // Updated to reflect new default
-			expectedQueueSize:   5000,              // Updated to reflect new default
+			expectedQueueSize:   10000,             // Updated to reflect new default
 			expectedRetries:     3,
 			expectedInitBackoff: 10,
 			expectedMaxBackoff:  1000,
@@ -139,7 +139,7 @@ func TestPCAPSetDefaults(t *testing.T) {
 			role:                "client",
 			initial:             PCAP{},
 			expectedSockbuf:     8 * 1024 * 1024, // Updated to reflect new default
-			expectedQueueSize:   5000,             // Updated to reflect new default
+			expectedQueueSize:   10000,            // Updated to reflect new default
 			expectedRetries:     3,
 			expectedInitBackoff: 10,
 			expectedMaxBackoff:  1000,
