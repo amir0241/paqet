@@ -12,6 +12,25 @@ listen:
                   # WARNING: Do not use standard ports (80, 443, etc.) as iptables rules
                   # can affect outgoing server connections.
 
+# GFW Resistance configuration
+# Implements the TCP violation technique inspired by:
+# https://github.com/GFW-knocker/gfw_resist_tcp_proxy
+#
+# The technique bypasses GFW IP blocking by using PSH+ACK packets instead of the
+# SYN handshake. The GFW only checks SYN packets against its blocklist, so
+# data sent via PSH+ACK reaches blocked servers unimpeded.
+#
+# For this to work correctly, the server needs specific iptables rules that:
+#   1. Bypass kernel connection tracking (NOTRACK) so stateless raw packets
+#      are not dropped as "INVALID" connections.
+#   2. Prevent the kernel from sending TCP RST replies to the stateless packets,
+#      which would disrupt NAT/firewall state on intermediate devices.
+#
+# Set auto_iptables: true to have paqet apply and clean up these rules automatically.
+# Requires root privileges and Linux with iptables/ip6tables installed.
+gfw_resist:
+  auto_iptables: false   # Set true to auto-apply iptables rules on startup (Linux only)
+
 # Network interface settings
 network:
   interface: "eth0"                          # CHANGE ME: Network interface (eth0, ens3, en0, etc.)

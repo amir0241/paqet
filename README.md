@@ -157,6 +157,17 @@ You **must** configure `iptables` on the server to prevent the kernel from inter
 >
 > Do not use ports 80, 443, or any other standard ports, because iptables rules can also affect outgoing connections from the server. Choose non-standard ports (e.g., 9999, 8888, or other high-numbered ports) for your server configuration.
 
+##### Option A: Automatic configuration (recommended)
+
+Set `gfw_resist.auto_iptables: true` in your server configuration. `paqet` will automatically apply the required rules on startup and remove them on shutdown (Linux only, requires root).
+
+```yaml
+gfw_resist:
+  auto_iptables: true  # Automatically manage iptables rules (Linux only)
+```
+
+##### Option B: Manual configuration
+
 Run these commands as root on your server:
 
 ```bash
@@ -387,6 +398,16 @@ The `transport.kcp.block` parameter determines the encryption method.
 ### TCP Flag Cycling
 
 The `network.tcp.local_flag` and `network.tcp.remote_flag` arrays cycle through flag combinations to vary traffic patterns. Common patterns: `["PA"]` (standard data), `["S"]` (connection setup), `["A"]` (acknowledgment).
+
+### GFW Resistance (`gfw_resist`)
+
+The `gfw_resist` section implements the TCP violation technique inspired by [gfw_resist_tcp_proxy](https://github.com/GFW-knocker/gfw_resist_tcp_proxy). This technique bypasses GFW IP-based blocking by communicating exclusively via PSH+ACK packets instead of the standard SYN handshake. The GFW inspects SYN packets for IP filtering but cannot economically check every PSH+ACK data packet.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `auto_iptables` | `false` | When `true`, automatically applies and cleans up the iptables rules required for TCP violation on startup/shutdown. Linux only, requires root. |
+
+**Note:** `auto_iptables` is a server-only setting and is ignored on the client.
 
 # Architecture & Security Model
 

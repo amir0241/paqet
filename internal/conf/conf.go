@@ -21,6 +21,7 @@ type Conf struct {
 	Server      Server      `yaml:"server"`
 	Transport   Transport   `yaml:"transport"`
 	Performance Performance `yaml:"performance"`
+	GFWResist   GFWResist   `yaml:"gfw_resist"`
 }
 
 func LoadFromFile(path string) (*Conf, error) {
@@ -62,6 +63,7 @@ func (c *Conf) setDefaults() {
 	c.Server.setDefaults()
 	c.Transport.setDefaults(c.Role)
 	c.Performance.setDefaults(c.Role)
+	c.GFWResist.setDefaults()
 	// Link performance config to network for access in lower layers
 	c.Network.Performance = &c.Performance
 }
@@ -92,6 +94,7 @@ func (c *Conf) validate() error {
 	allErrors = append(allErrors, c.Network.validate()...)
 	allErrors = append(allErrors, c.Transport.validate()...)
 	allErrors = append(allErrors, c.Performance.validate()...)
+	allErrors = append(allErrors, c.GFWResist.validate()...)
 	if c.Role == "server" {
 		allErrors = append(allErrors, c.Listen.validate()...)
 	} else {

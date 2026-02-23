@@ -10,6 +10,12 @@ log:
 listen:
   addr: ":9999"   # CHANGE ME: Server listen port (must match network.ipv4.addr port)
 
+# GFW Resistance configuration
+# Implements the TCP violation technique inspired by:
+# https://github.com/GFW-knocker/gfw_resist_tcp_proxy
+gfw_resist:
+  auto_iptables: false   # Set true to auto-apply iptables rules on startup (Linux only)
+
 # Network interface settings
 network:
   interface: "eth0"                          # CHANGE ME: Network interface (eth0, ens3, en0, etc.)
