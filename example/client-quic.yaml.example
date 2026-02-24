@@ -1,5 +1,6 @@
 # paqet Client Configuration Example with QUIC
-# This configuration uses QUIC protocol optimized for high bandwidth and many connections
+# All QUIC stream limits, flow-control windows, and performance settings are
+# auto-tuned from CPU count and RAM at startup — you do not need to set them.
 role: "client"
 
 # Logging configuration
@@ -30,30 +31,25 @@ network:
 server:
   addr: "10.0.0.100:9999"  # CHANGE ME: paqet server address and port
 
-# Transport protocol configuration - QUIC
+# Transport protocol configuration — QUIC
+# Buffer sizes (tcpbuf, udpbuf) are auto-tuned from CPU count.
 transport:
-  protocol: "quic"  # Using QUIC for high performance
+  protocol: "quic"
   conn: 1           # Number of connections (1-256, default: 1)
 
-  # QUIC protocol settings
   quic:
-    # Connection settings
-    max_idle_timeout: 30              # Maximum idle timeout in seconds
-    max_incoming_streams: 5000        # Max concurrent incoming streams (higher for better concurrency)
-    max_incoming_uni_streams: 5000    # Max concurrent incoming unidirectional streams
-    
-    # Flow control settings (optimized for high bandwidth)
-    # These are already optimized defaults, but can be increased further for very high bandwidth
-    initial_stream_receive_window: 6291456      # 6 MB
-    max_stream_receive_window: 25165824         # 24 MB
-    initial_connection_receive_window: 15728640 # 15 MB
-    max_connection_receive_window: 62914560     # 60 MB
-    
-    # Performance settings
-    enable_0rtt: true                 # Enable 0-RTT for faster reconnections
-    keep_alive_period: 10             # Keep-alive period in seconds
-    
-    # TLS settings - Important for QUIC!
-    insecure_skip_verify: true        # Set to true for self-signed certs (testing)
-                                      # Set to false in production with proper certificates
-    # server_name: "example.com"      # Optional: specify server name for TLS verification
+    # TLS — the only QUIC setting you typically need to change.
+    insecure_skip_verify: true        # Set true for self-signed server certs (testing)
+                                      # Set false in production with proper certificates
+    # server_name: "example.com"      # Optional: server name for TLS verification
+
+    # All other QUIC settings are auto-tuned.  Override only if needed:
+    # max_idle_timeout: 30            # seconds (auto: 30s client / 60s server)
+    # max_incoming_streams: 5000      # auto: cpus×1250, e.g. 5000 on 4 cores
+    # max_incoming_uni_streams: 5000  # same formula
+    # keep_alive_period: 15           # seconds (auto: 15)
+    # initial_stream_receive_window: 6291456       # 6 MB  (auto: 6 MB client)
+    # max_stream_receive_window: 25165824          # 24 MB (auto: 24 MB client)
+    # initial_connection_receive_window: 15728640  # 15 MB (auto: 15 MB client)
+    # max_connection_receive_window: 62914560      # 60 MB (auto: 60 MB client)
+    # enable_0rtt: true

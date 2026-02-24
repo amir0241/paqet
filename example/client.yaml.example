@@ -29,101 +29,77 @@ network:
     router_mac: "aa:bb:cc:dd:ee:ff"         # CHANGE ME: Gateway/router MAC address
 
   # IPv6 configuration (optional)
-  ipv6:
-    addr: "[2001:db8::1]:0"                 # CHANGE ME: Local IPv6 address and port (optional)
-    router_mac: "aa:bb:cc:dd:ee:ff"         # CHANGE ME: Gateway/router MAC address for IPv6
+  # ipv6:
+  #   addr: "[2001:db8::1]:0"               # CHANGE ME: Local IPv6 address and port
+  #   router_mac: "aa:bb:cc:dd:ee:ff"       # CHANGE ME: Gateway/router MAC address for IPv6
 
   tcp:
     local_flag: ["PA"]                      # Local TCP flags (Push+Ack default)
     remote_flag: ["PA"]                     # Remote TCP flags (Push+Ack default)
 
-  # PCAP settings (optional - will use defaults)
+  # PCAP settings — all auto-tuned from RAM/CPU; override only if needed.
   # pcap:
-    # sockbuf: 4194304                        # 4MB buffer (default for client)
-    # send_queue_size: 1000                   # Send queue size (default: 1000)
-    # max_retries: 3                          # Max retry attempts on write failure (default: 3)
-    # initial_backoff_ms: 10                  # Initial retry backoff in ms (default: 10ms)
-    # max_backoff_ms: 1000                    # Maximum retry backoff in ms (default: 1000ms)
+  #   sockbuf: 16777216          # Socket buffer in bytes (auto: nextPow2(RAM/512 MB) MB, e.g. 16 MB on 8 GB)
+  #   send_queue_size: 30000     # Send queue slots (auto: cpus×7500, e.g. 30000 on 4 cores)
+  #   max_retries: 3
+  #   initial_backoff_ms: 10
+  #   max_backoff_ms: 1000
 
 # Server connection settings
 server:
   addr: "10.0.0.100:9999"  # CHANGE ME: paqet server address and port
 
 # Transport protocol configuration
+# Buffer sizes (tcpbuf, udpbuf, tunbuf) are auto-tuned from CPU count — no need to set them.
 transport:
   protocol: "kcp"  # Transport protocol: "kcp" or "quic"
   conn: 1          # Number of connections (1-256, default: 1)
-  
-  # tcpbuf: 8192   # TCP buffer size in bytes
-  # udpbuf: 4096   # UDP buffer size in bytes
+
+  # Override buffer sizes only if you need to deviate from auto-tuned values:
+  # tcpbuf: 65536   # auto: cpus×16 KB, e.g. 64 KB on 4 cores
+  # udpbuf: 16384   # auto: cpus×4 KB,  e.g. 16 KB on 4 cores
 
   # KCP protocol settings (used when protocol: "kcp")
   kcp:
     mode: "fast"              # KCP mode: normal, fast, fast2, fast3, manual
 
     # Manual mode parameters (only used when mode="manual")
-    # nodelay: 1              # 0=disable, 1=enable
-                              # Enable for lower latency & aggressive retransmission
-                              # Disable for TCP-like conservative behavior
-                  
-    # interval: 10            # Internal update timer interval in milliseconds (10-5000ms)
-                              # Lower values increase responsiveness but raise CPU usage
+    # nodelay: 1              # 0=disable (TCP-like), 1=enable (lower latency, aggressive retransmit)
+    # interval: 10            # Update timer in milliseconds (lower = more responsive, higher CPU)
+    # resend: 2               # Fast retransmit trigger (0=disabled, 1=aggressive, 2=moderate)
+    # nocongestion: 1         # 0=congestion control enabled, 1=disabled (max speed)
+    # wdelay: false           # false=flush immediately (low latency), true=batch writes
+    # acknodelay: true        # true=send ACKs immediately (lower latency)
 
-    # resend: 2               # Fast retransmit trigger (0-2)
-                              # 0 = disabled (wait for timeout only)
-                              # 1 = most aggressive (retransmit after 1 ACK skip)
-                              # 2 = aggressive (retransmit after 2 ACK skips)
+    # mtu: 1350               # Maximum transmission unit (50-1500)
 
-    # nocongestion: 1         # Congestion control: 0=enabled, 1=disabled
-                              # 0 = TCP-like fair congestion control (slow start, congestion avoidance)
-                              # 1 = disable congestion control for maximum speed
-
-    # wdelay: false           # Write batching behavior
-                              # false = flush immediately (low latency, recommended for real-time)
-                              # true = batch writes until next update interval (higher throughput)
-                              # Controls when data is actually sent to the network
-
-    # acknodelay: true        # ACK sending behavior
-                              # true = send ACKs immediately when packets are received (lower latency)
-                              # false = batch ACKs (more bandwidth efficient)
-                              # Setting true reduces latency but increases bandwidth usage
-
-    # mtu: 1350              # Maximum transmission unit (50-1500)
-    # rcvwnd: 512            # Receive window size (default for client)  
-    # sndwnd: 512            # Send window size (default for client)
+    # KCP window/buffer sizes are auto-tuned from CPU count — override only if needed:
+    # rcvwnd: 8192            # auto: cpus×2048, e.g. 8192 on 4 cores
+    # sndwnd: 8192            # auto: cpus×2048
+    # smuxbuf: 4194304        # auto: cpus×1 MB,  e.g. 4 MB on 4 cores
+    # streambuf: 4194304      # auto: cpus×1 MB
 
     # Encryption settings
-    # block: "aes"                    # Encryption: aes, aes-128, aes-128-gcm, aes-192, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, xor, sm4, none, null.
+    # block: "aes"                    # aes, aes-128, aes-128-gcm, aes-192, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, xor, sm4, none, null
     key: "your-secret-key-here"       # CHANGE ME: Secret key (must match server)
 
-    # Buffer settings (optional)
-    # smuxbuf: 4194304       # 4MB SMUX buffer
-    # streambuf: 2097152     # 2MB stream buffer
-
   # QUIC protocol settings (used when protocol: "quic")
-  # QUIC is optimized for high bandwidth and many concurrent connections
+  # All QUIC stream/window settings are auto-tuned — see client-quic.yaml.example.
   # quic:
-    # Connection settings
-    # max_idle_timeout: 30              # Maximum idle timeout in seconds (default: 30)
-    # max_incoming_streams: 1000        # Max concurrent incoming streams (default: 1000 client, 10000 server)
-    # max_incoming_uni_streams: 1000    # Max concurrent incoming unidirectional streams (default: 1000 client, 10000 server)
-    
-    # Flow control settings (optimized for high bandwidth)
-    # initial_stream_receive_window: 6291456      # Initial stream receive window: 6 MB (default)
-    # max_stream_receive_window: 25165824         # Maximum stream receive window: 24 MB (default)
-    # initial_connection_receive_window: 15728640 # Initial connection receive window: 15 MB (default)
-    # max_connection_receive_window: 62914560     # Maximum connection receive window: 60 MB (default)
-    
-    # Performance settings
-    # enable_datagrams: false           # Enable QUIC datagram support (default: false)
-    # enable_0rtt: true                 # Enable 0-RTT for faster reconnections (default: true)
-    # keep_alive_period: 10             # Keep-alive period in seconds (default: 10)
-    
-    # TLS settings
-    # insecure_skip_verify: true        # Skip TLS verification (default: false, set true for self-signed certs)
-    # server_name: ""                   # Server name for TLS verification (default: server IP)
+  #   insecure_skip_verify: true      # Set true for self-signed certs
+
+# Performance section is fully auto-tuned from CPU count; only override if needed:
+# performance:
+#   max_concurrent_streams: 10000    # auto: cpus×2500, e.g. 10000 on 4 cores
+#   packet_workers: 4                # auto: GOMAXPROCS (capped at 64)
+#   stream_worker_pool_size: 5000    # auto: cpus×1250
+#   tcp_connection_pool_size: 100    # auto: cpus×25
+#   tcp_connection_idle_timeout: 90
+#   max_retry_attempts: 5
+#   retry_initial_backoff_ms: 100
+#   retry_max_backoff_ms: 10000
 
 # Optional Forward Error Correction (FEC) - currently disabled
-# Use these only if you need FEC for very lossy networks:
+# Use only for very lossy networks:
 #   dshard: 10    # Data shards for FEC
 #   pshard: 3     # Parity shards for FEC
