@@ -50,41 +50,41 @@ type Performance struct {
 }
 
 func (p *Performance) setDefaults(role string) {
+	cpus := sysCPUCount()
+
 	if p.MaxConcurrentStreams == 0 {
+		// Scale with CPU count to allow more concurrent streams on more capable machines.
 		if role == "server" {
-			// Server: Allow many concurrent streams for high pressure
-			p.MaxConcurrentStreams = 50000
+			p.MaxConcurrentStreams = clampInt(cpus*12500, 50000, 100000)
 		} else {
-			// Client: More conservative limit
-			p.MaxConcurrentStreams = 10000
+			p.MaxConcurrentStreams = clampInt(cpus*2500, 10000, 50000)
 		}
 	}
 
 	if p.PacketWorkers == 0 {
-		// Default to number of CPU cores for optimal parallelism
-		p.PacketWorkers = runtime.GOMAXPROCS(0)
-		if p.PacketWorkers < 2 {
-			p.PacketWorkers = 2
-		}
-		// For high-pressure scenarios, use more workers
+		// Default to number of logical CPUs for optimal parallelism.
+		// Clamped to the validation-allowed maximum of 64.
+		p.PacketWorkers = clampInt(runtime.GOMAXPROCS(0), 2, 64)
 		if role == "server" && p.PacketWorkers < 4 {
 			p.PacketWorkers = 4
 		}
 	}
 
 	if p.StreamWorkerPoolSize == 0 {
+		// Scale with CPU count: 2500 per core (server) / 1250 per core (client).
 		if role == "server" {
-			p.StreamWorkerPoolSize = 10000 // Increased from 5000 for better concurrency
+			p.StreamWorkerPoolSize = clampInt(cpus*2500, 10000, 100000)
 		} else {
-			p.StreamWorkerPoolSize = 5000 // Increased from 2000 for better concurrency
+			p.StreamWorkerPoolSize = clampInt(cpus*1250, 5000, 50000)
 		}
 	}
 
 	if p.TCPConnectionPoolSize == 0 {
+		// Scale with CPU count: 125 per core (server) / 25 per core (client).
 		if role == "server" {
-			p.TCPConnectionPoolSize = 500 // Larger pool for high-pressure servers
+			p.TCPConnectionPoolSize = clampInt(cpus*125, 500, 10000)
 		} else {
-			p.TCPConnectionPoolSize = 100
+			p.TCPConnectionPoolSize = clampInt(cpus*25, 100, 2000)
 		}
 	}
 

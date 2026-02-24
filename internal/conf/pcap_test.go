@@ -114,22 +114,34 @@ func TestPCAPConfigValidation(t *testing.T) {
 
 // TestPCAPSetDefaults tests the PCAP default values
 func TestPCAPSetDefaults(t *testing.T) {
+	// Compute the expected auto-tuned values for this machine so the test
+	// stays deterministic regardless of CPU count or total RAM.
+	cpus := sysCPUCount()
+	ramMB := sysRAMMB()
+
+	serverMB := nextPowerOf2(clampInt(ramMB/256, 16, 64))
+	expectedServerSockbuf := serverMB * 1024 * 1024
+
+	clientMB := nextPowerOf2(clampInt(ramMB/512, 8, 32))
+	expectedClientSockbuf := clientMB * 1024 * 1024
+	expectedQueueSize := clampInt(cpus*7500, 5000, 100000)
+
 	tests := []struct {
-		name               string
-		role               string
-		initial            PCAP
-		expectedSockbuf    int
-		expectedQueueSize  int
-		expectedRetries    int
+		name                string
+		role                string
+		initial             PCAP
+		expectedSockbuf     int
+		expectedQueueSize   int
+		expectedRetries     int
 		expectedInitBackoff int
-		expectedMaxBackoff int
+		expectedMaxBackoff  int
 	}{
 		{
 			name:                "server defaults",
 			role:                "server",
 			initial:             PCAP{},
-			expectedSockbuf:     16 * 1024 * 1024, // Updated to reflect new default
-			expectedQueueSize:   5000,              // Updated to reflect new default
+			expectedSockbuf:     expectedServerSockbuf,
+			expectedQueueSize:   expectedQueueSize,
 			expectedRetries:     3,
 			expectedInitBackoff: 10,
 			expectedMaxBackoff:  1000,
@@ -138,8 +150,8 @@ func TestPCAPSetDefaults(t *testing.T) {
 			name:                "client defaults",
 			role:                "client",
 			initial:             PCAP{},
-			expectedSockbuf:     8 * 1024 * 1024, // Updated to reflect new default
-			expectedQueueSize:   5000,             // Updated to reflect new default
+			expectedSockbuf:     expectedClientSockbuf,
+			expectedQueueSize:   expectedQueueSize,
 			expectedRetries:     3,
 			expectedInitBackoff: 10,
 			expectedMaxBackoff:  1000,

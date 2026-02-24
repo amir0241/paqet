@@ -14,15 +14,24 @@ type PCAP struct {
 }
 
 func (p *PCAP) setDefaults(role string) {
+	cpus := sysCPUCount()
+	ramMB := sysRAMMB()
+
 	if p.Sockbuf == 0 {
+		// Scale with RAM: ~1/256 (server) or ~1/512 (client) of total RAM.
+		// Snap to the next power of 2 within bounds for optimal kernel buffer alignment.
 		if role == "server" {
-			p.Sockbuf = 16 * 1024 * 1024 // Increased from 8MB to 16MB for better packet buffering
+			mb := nextPowerOf2(clampInt(ramMB/256, 16, 64))
+			p.Sockbuf = mb * 1024 * 1024
 		} else {
-			p.Sockbuf = 8 * 1024 * 1024 // Increased from 4MB to 8MB for better packet buffering
+			mb := nextPowerOf2(clampInt(ramMB/512, 8, 32))
+			p.Sockbuf = mb * 1024 * 1024
 		}
 	}
 	if p.SendQueueSize == 0 {
-		p.SendQueueSize = 5000 // Increased from 1000 to 5000 for better burst handling
+		// Scale with CPU count: 7500 slots per core, between 5000 and 100000.
+		// e.g. 4 CPUs → 30000.
+		p.SendQueueSize = clampInt(cpus*7500, 5000, 100000)
 	}
 	if p.MaxRetries == 0 {
 		p.MaxRetries = 3
