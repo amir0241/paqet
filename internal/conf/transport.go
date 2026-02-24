@@ -59,6 +59,18 @@ func (t *Transport) validate() []error {
 		errors = append(errors, fmt.Errorf("KCP conn must be between 1-256 connections"))
 	}
 
+	if t.TCPBuf < 4*1024 || t.TCPBuf > 16*1024*1024 {
+		errors = append(errors, fmt.Errorf("tcpbuf must be between 4KB and 16MB"))
+	}
+
+	if t.UDPBuf < 2*1024 || t.UDPBuf > 4*1024*1024 {
+		errors = append(errors, fmt.Errorf("udpbuf must be between 2KB and 4MB"))
+	}
+
+	if t.TUNBuf < 8*1024 || t.TUNBuf > 32*1024*1024 {
+		errors = append(errors, fmt.Errorf("tunbuf must be between 8KB and 32MB"))
+	}
+
 	switch t.Protocol {
 	case "kcp":
 		errors = append(errors, t.KCP.validate()...)

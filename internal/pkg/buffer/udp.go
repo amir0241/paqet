@@ -5,7 +5,7 @@ import (
 )
 
 func CopyU(dst io.Writer, src io.Reader) error {
-	bufp := UPool.Get().(*[]byte)
+	bufp := UPool.Get()
 	defer UPool.Put(bufp)
 	buf := *bufp
 

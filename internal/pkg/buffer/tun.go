@@ -39,7 +39,7 @@ func (cw *contextWriter) Write(p []byte) (int, error) {
 
 // CopyTUN copies from src to dst using the TUN buffer pool with context awareness
 func CopyTUN(ctx context.Context, dst io.Writer, src io.Reader) error {
-	bufp := TUNPool.Get().(*[]byte)
+	bufp := TUNPool.Get()
 	defer TUNPool.Put(bufp)
 	buf := *bufp
 
