@@ -1,5 +1,6 @@
 # paqet Server Configuration Example - TUN Mode
-# This configuration creates a virtual network interface tunnel between two servers
+# This configuration creates a virtual network interface tunnel between two servers.
+# All buffer sizes are auto-tuned from CPU count and RAM at startup.
 role: "server"
 
 # Logging configuration
@@ -32,19 +33,26 @@ network:
     remote_flag: ["PA"]                     # Remote TCP flags (Push+Ack default)
 
 # Transport protocol configuration
+# tunbuf, tcpbuf, and udpbuf are auto-tuned from CPU count — no need to set them.
 transport:
   protocol: "kcp"  # Transport protocol: "kcp" or "quic"
   conn: 1          # Number of connections (1-256, default: 1)
 
-  # Buffer sizes (optional - defaults optimized for high bandwidth)
-  # tunbuf: 262144  # TUN buffer size in bytes (default: 256KB for high-speed tunnels)
-  # tcpbuf: 65536   # TCP buffer size in bytes (default: 64KB)
-  # udpbuf: 16384   # UDP buffer size in bytes (default: 16KB)
+  # Override buffer sizes only if needed:
+  # tunbuf: 262144  # auto: cpus×64 KB, e.g. 256 KB on 4 cores
+  # tcpbuf: 65536   # auto: cpus×16 KB, e.g. 64 KB on 4 cores
+  # udpbuf: 16384   # auto: cpus×4 KB,  e.g. 16 KB on 4 cores
 
-  # KCP protocol settings (used when protocol: "kcp")
+  # KCP protocol settings
   kcp:
     mode: "fast"              # KCP mode: normal, fast, fast2, fast3, manual
     key: "your-secret-key-here"       # CHANGE ME: Secret key (must match client)
+
+    # KCP window/buffer sizes are auto-tuned from CPU count — override only if needed:
+    # rcvwnd: 8192            # auto: cpus×2048
+    # sndwnd: 8192            # auto: cpus×2048
+    # smuxbuf: 4194304        # auto: cpus×1 MB
+    # streambuf: 4194304      # auto: cpus×1 MB
 
 # Usage Instructions:
 # 1. Configure iptables rules to prevent kernel interference:

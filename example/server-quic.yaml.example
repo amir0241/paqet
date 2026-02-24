@@ -1,5 +1,6 @@
 # paqet Server Configuration Example with QUIC
-# This configuration uses QUIC protocol optimized for high bandwidth and many connections
+# All QUIC stream limits, flow-control windows, and performance settings are
+# auto-tuned from CPU count and RAM at startup — you do not need to set them.
 role: "server"
 
 # Logging configuration
@@ -24,30 +25,25 @@ network:
   tcp:
     local_flag: ["PA"]                       # Local TCP flags (Push+Ack default)
 
-# Transport protocol configuration - QUIC
+# Transport protocol configuration — QUIC
+# Buffer sizes (tcpbuf, udpbuf) are auto-tuned from CPU count.
 transport:
-  protocol: "quic"  # Using QUIC for high performance
+  protocol: "quic"
   conn: 1           # Number of connections (1-256, default: 1)
 
-  # QUIC protocol settings
   quic:
-    # Connection settings
-    max_idle_timeout: 30              # Maximum idle timeout in seconds
-    max_incoming_streams: 10000       # Max concurrent incoming streams (high for server)
-    max_incoming_uni_streams: 10000   # Max concurrent incoming unidirectional streams
-    
-    # Flow control settings (optimized for high bandwidth)
-    # These defaults are already optimized, but can be tuned based on your needs
-    initial_stream_receive_window: 6291456      # 6 MB
-    max_stream_receive_window: 25165824         # 24 MB
-    initial_connection_receive_window: 15728640 # 15 MB
-    max_connection_receive_window: 62914560     # 60 MB
-    
-    # Performance settings
-    enable_0rtt: true                 # Enable 0-RTT for faster client reconnections
-    keep_alive_period: 10             # Keep-alive period in seconds
-    
-    # Note: Server automatically generates a self-signed TLS certificate
+    # Server auto-generates a self-signed TLS certificate — no TLS config needed here.
+
+    # All QUIC settings are auto-tuned.  Override only if needed:
+    # max_idle_timeout: 60              # seconds (auto: 60s server)
+    # max_incoming_streams: 50000       # auto: cpus×12500, e.g. 50000 on 4 cores
+    # max_incoming_uni_streams: 50000   # same formula
+    # keep_alive_period: 15             # seconds (auto: 15)
+    # initial_stream_receive_window: 10485760      # 10 MB  (auto: 10 MB server)
+    # max_stream_receive_window: 41943040          # 40 MB  (auto: 40 MB server)
+    # initial_connection_receive_window: 31457280  # 30 MB  (auto: 30 MB server)
+    # max_connection_receive_window: 104857600     # 100 MB (auto: 100 MB server)
+    # enable_0rtt: true
 
 # Important: Server Firewall Configuration Required!
 # 

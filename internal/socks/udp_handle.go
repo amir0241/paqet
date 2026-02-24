@@ -11,7 +11,7 @@ import (
 )
 
 func (h *Handler) UDPHandle(server *socks5.Server, addr *net.UDPAddr, d *socks5.Datagram) error {
-	bufp := buffer.UPool.Get().(*[]byte)
+	bufp := buffer.UPool.Get()
 	defer buffer.UPool.Put(bufp)
 	buf := *bufp
 	strm, new, k, err := h.client.UDP(addr.String(), d.Address())

@@ -16,24 +16,29 @@ type Transport struct {
 }
 
 func (t *Transport) setDefaults(role string) {
+	cpus := sysCPUCount()
+
 	if t.Conn == 0 {
 		t.Conn = 1
 	}
 
 	if t.TCPBuf == 0 {
-		t.TCPBuf = 64 * 1024 // Increased from 8KB to 64KB for better throughput
+		// Scale with CPU count: 16 KB per core, between 64 KB and 4 MB.
+		t.TCPBuf = clampInt(cpus*16*1024, 64*1024, 4*1024*1024)
 	}
 	if t.TCPBuf < 4*1024 {
 		t.TCPBuf = 4 * 1024
 	}
 	if t.UDPBuf == 0 {
-		t.UDPBuf = 16 * 1024 // Increased from 4KB to 16KB for better packet handling
+		// Scale with CPU count: 4 KB per core, between 16 KB and 1 MB.
+		t.UDPBuf = clampInt(cpus*4*1024, 16*1024, 1*1024*1024)
 	}
 	if t.UDPBuf < 2*1024 {
 		t.UDPBuf = 2 * 1024
 	}
 	if t.TUNBuf == 0 {
-		t.TUNBuf = 256 * 1024 // 256KB for high-bandwidth TUN tunnels
+		// Scale with CPU count: 64 KB per core, between 256 KB and 16 MB.
+		t.TUNBuf = clampInt(cpus*64*1024, 256*1024, 16*1024*1024)
 	}
 	if t.TUNBuf < 8*1024 {
 		t.TUNBuf = 8 * 1024
@@ -57,6 +62,18 @@ func (t *Transport) validate() []error {
 
 	if t.Conn < 1 || t.Conn > 256 {
 		errors = append(errors, fmt.Errorf("KCP conn must be between 1-256 connections"))
+	}
+
+	if t.TCPBuf < 4*1024 || t.TCPBuf > 16*1024*1024 {
+		errors = append(errors, fmt.Errorf("tcpbuf must be between 4KB and 16MB"))
+	}
+
+	if t.UDPBuf < 2*1024 || t.UDPBuf > 4*1024*1024 {
+		errors = append(errors, fmt.Errorf("udpbuf must be between 2KB and 4MB"))
+	}
+
+	if t.TUNBuf < 8*1024 || t.TUNBuf > 32*1024*1024 {
+		errors = append(errors, fmt.Errorf("tunbuf must be between 8KB and 32MB"))
 	}
 
 	switch t.Protocol {

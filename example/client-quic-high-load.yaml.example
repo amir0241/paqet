@@ -1,10 +1,14 @@
 # paqet Client Configuration for High Connection Pressure with QUIC
-# This configuration is optimized for handling many concurrent connections
+#
+# All buffer, window, and performance settings are now auto-tuned from CPU count
+# and RAM at startup — this file is identical to client-quic.yaml.example.
+# You no longer need a separate "high-load" config; the defaults are already
+# optimized for high bandwidth.  Override individual fields only to fine-tune.
 role: "client"
 
 # Logging configuration
 log:
-  level: "info"  # Use "warn" or "error" for very high load to reduce overhead
+  level: "info"  # Use "warn" or "error" at very high load to reduce overhead
 
 # SOCKS5 proxy configuration (client mode)
 socks5:
@@ -30,59 +34,39 @@ network:
 server:
   addr: "10.0.0.100:9999"  # CHANGE ME: paqet server address and port
 
-# Transport protocol configuration - QUIC optimized for high load
+# Transport protocol configuration — QUIC
 transport:
-  protocol: "quic"  # Using QUIC for high performance under pressure
+  protocol: "quic"
   conn: 1           # Number of connections (1-256, default: 1)
 
-  # QUIC protocol settings optimized for high connection pressure
   quic:
-    # Connection settings - INCREASED FOR HIGH LOAD
-    max_idle_timeout: 60                # Increased to 60s to prevent premature disconnections
-    max_incoming_streams: 10000         # High limit for concurrent streams on client
-    max_incoming_uni_streams: 10000     # High limit for unidirectional streams
-    
-    # Flow control settings - OPTIMIZED FOR HIGH BANDWIDTH
-    # These values balance memory usage with performance
-    initial_stream_receive_window: 6291456      # 6 MB
-    max_stream_receive_window: 25165824         # 24 MB
-    initial_connection_receive_window: 15728640 # 15 MB
-    max_connection_receive_window: 62914560     # 60 MB
-    
-    # Performance settings
-    enable_0rtt: true                   # Enable 0-RTT for faster reconnections
-    keep_alive_period: 15               # Keep-alive every 15s for better dead connection detection
-    
-    # TLS settings - Important for QUIC!
-    insecure_skip_verify: true          # Set to true for self-signed certs (testing)
-                                        # Set to false in production with proper certificates
-    # server_name: "example.com"        # Optional: specify server name for TLS verification
+    # TLS — typically the only setting you need to change.
+    insecure_skip_verify: true          # Set true for self-signed certs (testing)
+                                        # Set false in production with proper certificates
+    # server_name: "example.com"        # Optional: server name for TLS verification
 
-# Performance tuning for high connection pressure
-performance:
-  # CRITICAL: Increase concurrent stream limit for high load
-  max_concurrent_streams: 10000         # Allow up to 10k concurrent stream handlers
-  
-  # Packet processing optimization
-  packet_workers: 4                     # Increase based on CPU cores (default: num_cores)
-  stream_worker_pool_size: 2000         # Worker pool for stream handling
-  
-  # TCP connection pooling - NOT typically needed on client, but can help
-  enable_connection_pooling: false      # Usually disabled on client
-  tcp_connection_pool_size: 100
-  tcp_connection_idle_timeout: 90
-  
-  # Retry configuration for transient failures
-  max_retry_attempts: 5
-  retry_initial_backoff_ms: 100
-  retry_max_backoff_ms: 10000
+    # All other QUIC settings are auto-tuned.  Override only if needed:
+    # max_idle_timeout: 30
+    # max_incoming_streams: 5000        # auto: cpus×1250, e.g. 5000 on 4 cores
+    # keep_alive_period: 15
 
-# Additional client-side tuning recommendations for high load:
+# Performance section is fully auto-tuned — only override if needed:
+# performance:
+#   max_concurrent_streams: 10000       # auto: cpus×2500, e.g. 10000 on 4 cores
+#   packet_workers: 4                   # auto: GOMAXPROCS (capped at 64)
+#   stream_worker_pool_size: 5000       # auto: cpus×1250
+#   tcp_connection_pool_size: 100       # auto: cpus×25
+#   tcp_connection_idle_timeout: 90
+#   max_retry_attempts: 5
+#   retry_initial_backoff_ms: 100
+#   retry_max_backoff_ms: 10000
+
+# Additional client-side OS tuning recommendations for high load:
 #
 # 1. Increase file descriptor limits:
 #    ulimit -n 100000
 #
-# 2. If using many concurrent connections, consider increasing local port range:
+# 2. Expand local port range for many concurrent connections:
 #    sudo sysctl -w net.ipv4.ip_local_port_range="1024 65535"
 #
 # 3. Enable TCP fast open:
