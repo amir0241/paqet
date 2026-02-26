@@ -42,5 +42,5 @@ func Dial(addr *net.UDPAddr, cfg *conf.QUIC, pConn *socket.PacketConn) (tnet.Con
 
 	flog.Debugf("QUIC connection established to %s", addr.String())
 
-	return newConn(qconn), nil
+	return newConn(qconn, pConn), nil
 }

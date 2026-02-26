@@ -5,11 +5,7 @@ This Version Fixed Buffer Size Problem
 [![Go Version](https://img.shields.io/badge/go-1.25+-blue.svg)](https://golang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-`paqet` is a bidirectional packet level proxy built using raw sockets. It forwards traffic from a local client to a remote server, bypassing the host operating system's TCP/IP stack, using KCP, QUIC, or TCP for secure, reliable transport.
-
-`paqet` supports two modes of operation:
-- **SOCKS5 Proxy Mode**: Application-level proxying for web browsing and specific applications
-- **TUN Mode**: Layer 3 VPN-like tunneling with virtual network interfaces for transparent IP routing
+`paqet` is a bidirectional packet level proxy built using raw sockets. It forwards traffic from a local client to a remote server, bypassing the host operating system's TCP/IP stack, using KCP or QUIC for secure, reliable transport.
 
 > **⚠️ Development Status Notice**
 >
@@ -25,7 +21,7 @@ This Version Fixed Buffer Size Problem
 ```
 [Your App] <------> [paqet Client] <===== Raw TCP Packet =====> [paqet Server] <------> [Target Server]
 (e.g. curl)        (localhost:1080)        (Internet)          (Public IP:PORT)     (e.g. https://httpbin.org)
-                                  (KCP or QUIC transport)
+                                      (KCP or QUIC transport)
 ```
 
 `paqet` use cases include bypassing firewalls that detect standard handshake protocols and kernel-level connection tracking, as well as network security research. While more complex to configure than general-purpose VPN solutions, it offers granular control at the packet level.
@@ -112,7 +108,7 @@ server:
 
 # Transport protocol configuration
 transport:
-  protocol: "kcp" # Transport protocol: "kcp" or "quic"
+  protocol: "kcp" # Transport protocol (currently only "kcp" supported)
   kcp:
     block: "aes" # Encryption algorithm
     key: "your-secret-key-here" # CHANGE ME: Secret key (must match server)
@@ -141,7 +137,7 @@ network:
 
 # Transport protocol configuration
 transport:
-  protocol: "kcp" # Transport protocol: "kcp" or "quic"
+  protocol: "kcp" # Transport protocol (currently only "kcp" supported)
   kcp:
     block: "aes" # Encryption algorithm
     key: "your-secret-key-here" # CHANGE ME: Secret key (must match client)
@@ -213,126 +209,6 @@ curl -v https://httpbin.org/ip --proxy socks5h://127.0.0.1:1080
 
 This request will be proxied over raw TCP packets to the server, and then forwarded according to the client mode configuration. The output should show your server's public IP address, confirming the connection is working.
 
-## TUN Mode - Virtual Network Interface
-
-In addition to SOCKS5 proxy mode, `paqet` supports **TUN mode**, which creates a virtual network interface on both client and server. This allows you to establish a layer 3 network tunnel between two servers, enabling direct IP routing rather than application-level proxying.
-
-### Use Cases
-
-- Create a point-to-point VPN tunnel between two servers
-- Establish a private network overlay using IP addresses (e.g., `10.0.8.1` ↔ `10.0.8.2`)
-- Route traffic between different networks through the tunnel
-- Build a mesh network or connect remote network segments
-
-### TUN Mode Configuration
-
-TUN mode requires configuration on both client and server. The key difference from SOCKS5 mode is the `tun` section:
-
-#### Client Configuration Example
-
-```yaml
-role: "client"
-
-tun:
-  enabled: true              # Enable TUN mode
-  name: "tun0"               # TUN device name
-  addr: "10.0.8.1/24"        # Client TUN IP address (CIDR notation)
-  mtu: 1400                  # MTU size (default: 1500)
-
-network:
-  interface: "en0"
-  ipv4:
-    addr: "192.168.1.100:0"
-    router_mac: "aa:bb:cc:dd:ee:ff"
-
-server:
-  addr: "10.0.0.100:9999"
-
-transport:
-  protocol: "kcp"
-  kcp:
-    mode: "fast"
-    key: "your-secret-key-here"
-```
-
-#### Server Configuration Example
-
-```yaml
-role: "server"
-
-listen:
-  addr: ":9999"
-
-tun:
-  enabled: true              # Enable TUN mode
-  name: "tun0"               # TUN device name
-  addr: "10.0.8.2/24"        # Server TUN IP address (CIDR notation)
-  mtu: 1400                  # MTU size (default: 1500)
-
-network:
-  interface: "eth0"
-  ipv4:
-    addr: "10.0.0.100:9999"
-    router_mac: "aa:bb:cc:dd:ee:ff"
-
-transport:
-  protocol: "kcp"
-  kcp:
-    mode: "fast"
-    key: "your-secret-key-here"
-```
-
-**See [`example/client-tun.yaml.example`](example/client-tun.yaml.example) and [`example/server-tun.yaml.example`](example/server-tun.yaml.example) for complete configuration examples.**
-
-### Using TUN Mode
-
-1. **Start the server** with TUN configuration:
-   ```bash
-   sudo ./paqet run -c server-tun.yaml
-   ```
-   The server will create a `tun0` interface with IP `10.0.8.2/24`.
-
-2. **Start the client** with TUN configuration:
-   ```bash
-   sudo ./paqet run -c client-tun.yaml
-   ```
-   The client will create a `tun0` interface with IP `10.0.8.1/24`.
-
-3. **Test connectivity** between the two interfaces:
-   ```bash
-   # From client:
-   ping 10.0.8.2
-   
-   # From server:
-   ping 10.0.8.1
-   ```
-
-4. **Add routes** to direct traffic through the tunnel:
-   ```bash
-   # Linux - route a subnet through the tunnel:
-   sudo ip route add 10.0.9.0/24 via 10.0.8.2 dev tun0
-   
-   # macOS - route a subnet through the tunnel:
-   sudo route add -net 10.0.9.0/24 10.0.8.2
-   ```
-
-### TUN vs SOCKS5
-
-| Feature | SOCKS5 Mode | TUN Mode |
-|---------|-------------|----------|
-| **Layer** | Application layer (proxy) | Network layer (IP routing) |
-| **Transparency** | Requires app support for SOCKS5 | Transparent to applications |
-| **Use Case** | Web browsing, specific apps | System-wide routing, VPN-like |
-| **Configuration** | Per-application | System-level routes |
-| **Protocols** | TCP/UDP via proxy | Any IP protocol (TCP, UDP, ICMP, etc.) |
-
-### Notes
-
-- **Root/Administrator privileges required**: TUN mode requires elevated privileges to create virtual network interfaces.
-- **Firewall rules still apply**: Remember to configure iptables on the server as described in the main documentation.
-- **MTU considerations**: If you experience packet drops, try reducing the MTU from 1500 to 1400 or lower.
-- **Platform support**: TUN mode is supported on Linux and macOS. Windows support requires additional testing.
-
 ## Command-Line Usage
 
 `paqet` is a multi-command application. The primary command is `run`, which starts the proxy, but several utility commands are included to help with configuration and debugging.
@@ -361,8 +237,6 @@ paqet uses unified YAML configuration for client and server. The `role` field mu
 - [`example/server.yaml.example`](example/server.yaml.example) - Server configuration reference (KCP)
 - [`example/client-quic.yaml.example`](example/client-quic.yaml.example) - Client configuration with QUIC
 - [`example/server-quic.yaml.example`](example/server-quic.yaml.example) - Server configuration with QUIC
-- [`example/client-tun.yaml.example`](example/client-tun.yaml.example) - Client configuration with TUN mode
-- [`example/server-tun.yaml.example`](example/server-tun.yaml.example) - Server configuration with TUN mode
 
 ### Transport Protocols
 

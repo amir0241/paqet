@@ -19,7 +19,7 @@ func getQUICConfig(cfg *conf.QUIC) *quic.Config {
 		MaxConnectionReceiveWindow:     uint64(cfg.MaxConnectionReceiveWindow),
 		KeepAlivePeriod:                time.Duration(cfg.KeepAlivePeriod) * time.Second,
 		EnableDatagrams:                cfg.EnableDatagrams,
-		Allow0RTT:                      cfg.Enable0RTT,
+		Allow0RTT:                      cfg.Enable0RTTValue(),
 	}
 
 	return config

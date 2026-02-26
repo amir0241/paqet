@@ -76,3 +76,10 @@ func (c *Conn) RemoteAddr() net.Addr               { return c.Session.RemoteAddr
 func (c *Conn) SetDeadline(t time.Time) error      { return c.Session.SetDeadline(t) }
 func (c *Conn) SetReadDeadline(t time.Time) error  { return c.UDPSession.SetReadDeadline(t) }
 func (c *Conn) SetWriteDeadline(t time.Time) error { return c.UDPSession.SetWriteDeadline(t) }
+
+func (c *Conn) PacketStats() (dropped uint64, queueDepth int) {
+	if c.PacketConn == nil {
+		return 0, 0
+	}
+	return c.PacketConn.DroppedPackets(), c.PacketConn.QueueDepth()
+}

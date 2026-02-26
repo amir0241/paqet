@@ -24,8 +24,8 @@ type QUIC struct {
 	MaxConnectionReceiveWindow     int64 `yaml:"max_connection_receive_window"`     // Maximum connection receive window (default: 60 MB)
 
 	// Performance settings
-	EnableDatagrams bool `yaml:"enable_datagrams"` // Enable QUIC datagram support (default: false)
-	Enable0RTT      bool `yaml:"enable_0rtt"`      // Enable 0-RTT for faster reconnections (default: true)
+	EnableDatagrams bool  `yaml:"enable_datagrams"` // Enable QUIC datagram support (default: false)
+	Enable0RTT      *bool `yaml:"enable_0rtt"`      // Enable 0-RTT for faster reconnections (default: true)
 
 	// Keep-alive settings
 	KeepAlivePeriod int `yaml:"keep_alive_period"` // Keep-alive period in seconds (default: 10)
@@ -101,14 +101,18 @@ func (q *QUIC) setDefaults(role string) {
 	}
 
 	if q.KeepAlivePeriod == 0 {
-		// Keep-alive at 15 seconds for better detection of dead connections
-		// (increased from 10s default to reduce overhead while maintaining detection)
-		q.KeepAlivePeriod = 15
+		// Lower keep-alive on clients for faster dead-path detection with minimal overhead.
+		if role == "server" {
+			q.KeepAlivePeriod = 15
+		} else {
+			q.KeepAlivePeriod = 10
+		}
 	}
 
-	// Enable 0-RTT by default for performance
-	// (Note: In YAML, if not set, the zero value is false, so we set it in code)
-	// We'll check for explicit configuration in validate
+	if q.Enable0RTT == nil {
+		enable := true
+		q.Enable0RTT = &enable
+	}
 }
 
 func (q *QUIC) validate() []error {
@@ -147,6 +151,13 @@ func (q *QUIC) validate() []error {
 	}
 
 	return errors
+}
+
+func (q *QUIC) Enable0RTTValue() bool {
+	if q.Enable0RTT == nil {
+		return true
+	}
+	return *q.Enable0RTT
 }
 
 // Certificate validity period for self-signed certificates

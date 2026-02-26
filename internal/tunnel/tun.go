@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"paqet/internal/conf"
 	"paqet/internal/flog"
+	"reflect"
 	"runtime"
 
 	"github.com/songgao/water"
@@ -26,7 +27,11 @@ func New(cfg *conf.TUN) (*TUN, error) {
 	config := water.Config{
 		DeviceType: water.TUN,
 	}
-	config.Name = cfg.Name
+	if ps := reflect.ValueOf(&config.PlatformSpecificParams).Elem(); ps.IsValid() {
+		if nameField := ps.FieldByName("Name"); nameField.IsValid() && nameField.CanSet() && nameField.Kind() == reflect.String {
+			nameField.SetString(cfg.Name)
+		}
+	}
 
 	iface, err := water.New(config)
 	if err != nil {
@@ -88,7 +93,7 @@ func (t *TUN) configureDarwin() error {
 	// For macOS, we need to set both local and destination addresses
 	ip := t.cfg.IP.String()
 	network := t.cfg.Net
-	
+
 	// Calculate a destination address (typically the network address + 1 or last address - 1)
 	destIP := make(net.IP, len(network.IP))
 	copy(destIP, network.IP)

@@ -81,7 +81,7 @@ func (l *Listener) Accept() (tnet.Conn, error) {
 		}
 
 		// Pass listener's context to connection for proper shutdown propagation
-		return newConnWithContext(qconn, l.ctx), nil
+		return newConnWithContext(qconn, nil, l.ctx), nil
 	}
 }
 

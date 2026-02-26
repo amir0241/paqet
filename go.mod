@@ -6,7 +6,6 @@ require (
 	github.com/goccy/go-yaml v1.19.2
 	github.com/gopacket/gopacket v1.5.0
 	github.com/quic-go/quic-go v0.59.0
-	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/spf13/cobra v1.10.2
 	github.com/txthinking/socks5 v0.0.0-20251011041537-5c31f201a10e
 	github.com/xtaci/kcp-go/v5 v5.6.64
@@ -26,5 +25,4 @@ require (
 	golang.org/x/net v0.49.0 // indirect
 	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
-	golang.org/x/tools v0.40.0 // indirect
 )

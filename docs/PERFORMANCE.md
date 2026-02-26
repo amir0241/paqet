@@ -1,384 +1,148 @@
-# Production Performance Optimizations
+# Performance Guide (v1.4)
 
-This document describes the performance optimizations implemented in paqet to ensure production-ready reliability, scalability, and resource efficiency.
+This document describes the production performance model in `paqet` version `1.4`.
 
-## Overview
+## v1.4 Highlights
 
-The paqet project has been optimized for production usage with the following key improvements:
+- Adaptive defaults now scale by CPU/RAM and by role (`client` vs `server`).
+- Connection health checks and TCP-flag refresh intervals are now configurable.
+- Retry behavior is bounded and backoff-driven in both stream creation and packet send paths.
+- Server-side connection pooling is enabled by default.
+- Packet pressure is observable through periodic dropped-packet and queue-depth logs.
 
-1. **Concurrency Control** - Limits concurrent operations to prevent resource exhaustion
-2. **Parallel Processing** - Multi-worker packet processing for better CPU utilization
-3. **Connection Pooling** - Reuses TCP connections to reduce overhead
-4. **Smart Retry Logic** - Exponential backoff prevents infinite loops and thundering herd
-5. **Resource Management** - Automatic cleanup of idle resources
+## Performance Section
 
-## Configuration
-
-All performance settings are optional and have production-ready defaults. Add a `performance` section to your YAML configuration:
+All fields are optional. If omitted, `paqet` applies defaults from `internal/conf/performance.go`.
 
 ```yaml
 performance:
-  # Maximum concurrent stream handlers
-  max_concurrent_streams: 10000
-  
-  # Number of parallel packet workers
-  packet_workers: 4
-  
-  # Stream worker pool size (default: 10000 server, 5000 client)
-  stream_worker_pool_size: 10000
-  
-  # Enable TCP connection pooling (server only)
+  max_concurrent_streams: 0
+  packet_workers: 0
+  stream_worker_pool_size: 0
   enable_connection_pooling: true
-  tcp_connection_pool_size: 100
-  tcp_connection_idle_timeout: 90
-  
-  # Retry configuration
-  max_retry_attempts: 5
+  tcp_connection_pool_size: 0
+  tcp_connection_idle_timeout: 75
+  max_retry_attempts: 6
   retry_initial_backoff_ms: 100
-  retry_max_backoff_ms: 10000
-
-# Buffer configuration (optional - defaults optimized for high bandwidth)
-transport:
-  tcpbuf: 65536  # Default: 64KB for high throughput
-  udpbuf: 16384  # Default: 16KB for efficient packet handling
-  tunbuf: 262144 # Default: 256KB for high-speed TUN tunnels
-
-# PCAP configuration (optional - defaults optimized for packet capture)
-network:
-  pcap:
-    sockbuf: 16777216       # Default: 16MB server, 8MB client
-    send_queue_size: 5000   # Default: 5000 for burst handling
+  retry_max_backoff_ms: 5000
+  connection_health_check_ms: 1000
+  tcp_flag_refresh_ms: 5000
 ```
 
-## Optimization Details
+## Adaptive Defaults
 
-### 1. Concurrency Limits
+### `performance.*`
 
-**Problem**: Unbounded goroutine creation could exhaust system resources under high load.
+| Field | Server Default | Client Default |
+|---|---|---|
+| `max_concurrent_streams` | `clamp(cpu*12500, 50000, 100000)` | `clamp(cpu*2500, 10000, 50000)` |
+| `packet_workers` | `clamp(GOMAXPROCS, 2, 64)` and minimum `4` | `clamp(GOMAXPROCS, 2, 64)` |
+| `stream_worker_pool_size` | `clamp(cpu*2500, 10000, 100000)` | `clamp(cpu*1250, 5000, 50000)` |
+| `enable_connection_pooling` | `true` | `false` |
+| `tcp_connection_pool_size` | `clamp(cpu*64, 256, 4096)` | `clamp(cpu*16, 64, 512)` |
+| `tcp_connection_idle_timeout` | `75s` | `75s` |
+| `max_retry_attempts` | `6` | `6` |
+| `retry_initial_backoff_ms` | `100` | `100` |
+| `retry_max_backoff_ms` | `5000` | `5000` |
+| `connection_health_check_ms` | `1000` | `1000` |
+| `tcp_flag_refresh_ms` | `5000` | `5000` |
 
-**Solution**: Semaphore-based limiting of concurrent stream handlers.
+### `network.pcap.*`
 
-**Configuration**:
-- `max_concurrent_streams`: Maximum concurrent operations (default: 50000 server, 10000 client)
-- Set to 0 for unlimited (not recommended in production)
+Defaults from `internal/conf/pcap.go`:
 
-**Implementation**:
-- Server: Limits concurrent stream handlers (`internal/server/server.go`)
-- Forward: Limits concurrent TCP/UDP connections (`internal/forward/`)
+| Field | Server Default | Client Default |
+|---|---|---|
+| `sockbuf` | `nextPow2(clamp(ramMB/256, 16, 64)) MB` | `nextPow2(clamp(ramMB/512, 8, 32)) MB` |
+| `send_queue_size` | `clamp(cpu*10000, 10000, 100000)` | `clamp(cpu*10000, 10000, 100000)` |
+| `max_retries` | `5` | `5` |
+| `initial_backoff_ms` | `15` | `15` |
+| `max_backoff_ms` | `2000` | `2000` |
 
-**Benefits**:
-- Prevents OOM errors under load
-- Predictable resource usage
-- Graceful degradation under stress
+### `transport.*`
 
-### 2. Parallel Packet Processing
+Defaults from `internal/conf/transport.go`:
 
-**Problem**: Single-threaded packet serialization was a bottleneck on multi-core systems.
+| Field | Server Default | Client Default |
+|---|---|---|
+| `conn` | `1` | QUIC: `clamp(cpu/2,1,4)`, KCP: `clamp(cpu/3,1,3)` |
+| `tcpbuf` | `clamp(cpu*16KB, 64KB, 4MB)` | same |
+| `udpbuf` | `clamp(cpu*4KB, 16KB, 1MB)` | same |
+| `tunbuf` | `clamp(cpu*64KB, 256KB, 16MB)` | same |
 
-**Solution**: Multiple worker goroutines process packets in parallel.
+## Why It Improves Latency and Stability
 
-**Configuration**:
-- `packet_workers`: Number of workers (default: number of CPU cores)
+- Connection loss is detected quickly through `connection_health_check_ms`.
+- PTCPF metadata stays fresh via `tcp_flag_refresh_ms`, reducing stale path behavior.
+- Stream creation retries stop at `max_retry_attempts` with exponential backoff.
+- Send queue retries use jitter to avoid synchronized retry bursts.
+- Packet workers parallelize serialization and TX.
+- Connection pooling avoids repeated TCP handshakes to upstream targets.
 
-**Implementation**: 
-- Multiple `processQueue()` workers in `internal/socket/send_handle.go`
-- Each worker independently serializes and sends packets
+## Recommended Profiles
 
-**Benefits**:
-- Better CPU utilization on multi-core systems
-- Higher throughput for packet-heavy workloads
-- Scales with available CPU cores
-
-**Performance Impact**:
-- ~2-4x throughput improvement on 4+ core systems
-- Linear scaling up to ~8 cores
-
-### 3. TCP Connection Pooling
-
-**Problem**: Creating new TCP connections for every request adds latency and resource overhead.
-
-**Solution**: Connection pool that reuses connections to the same targets.
-
-**Configuration** (server only):
-- `enable_connection_pooling`: Enable/disable pooling (default: false)
-- `tcp_connection_pool_size`: Max connections per target (default: 100)
-- `tcp_connection_idle_timeout`: Idle timeout in seconds (default: 90)
-
-**Implementation**: 
-- Pool manager in `internal/pkg/connpool/pool.go`
-- Automatic idle connection cleanup
-- Per-target pools with connection health checks
-
-**Benefits**:
-- Reduced connection establishment overhead
-- Lower latency for repeated connections
-- Automatic cleanup of stale connections
-
-**When to Enable**:
-- ✅ Server proxying to a small set of backends
-- ✅ High request rate to same targets
-- ❌ Large number of unique targets (pool overhead)
-- ❌ Short-lived connections (no reuse benefit)
-
-### 4. Smart Retry Logic
-
-**Problem**: Infinite recursion in stream creation could cause stack overflow.
-
-**Solution**: Bounded retry with exponential backoff.
-
-**Configuration**:
-- `max_retry_attempts`: Maximum retries (default: 5)
-- `retry_initial_backoff_ms`: Initial backoff (default: 100ms)
-- `retry_max_backoff_ms`: Maximum backoff (default: 10s)
-
-**Implementation**: 
-- `newStrmWithRetry()` in `internal/client/dial.go`
-- Exponential backoff: `backoff = initial * 2^attempt`
-
-**Benefits**:
-- Prevents stack overflow from infinite recursion
-- Reduces server load during failures
-- Better error messages with attempt tracking
-
-**Backoff Example**:
-```
-Attempt 1: 100ms
-Attempt 2: 200ms
-Attempt 3: 400ms
-Attempt 4: 800ms
-Attempt 5: 1600ms
-```
-
-### 6. Buffer Size Optimization
-
-**Problem**: Small buffer sizes (8KB TCP, 4KB UDP, 1.5KB TUN) limited throughput on high-bandwidth connections.
-
-**Solution**: Increased default buffer sizes for optimal performance.
-
-**Configuration**:
-- `tcpbuf`: TCP buffer size (default: 64KB, minimum: 4KB)
-- `udpbuf`: UDP buffer size (default: 16KB, minimum: 2KB)
-- `tunbuf`: TUN buffer size (default: 256KB, minimum: 8KB)
-
-**Optimized Defaults**:
-- TCP: 8KB → 64KB (8x improvement)
-- UDP: 4KB → 16KB (4x improvement)
-- TUN: 1.5KB → 256KB (170x improvement)
-
-**Implementation**:
-- Buffer pools in `internal/pkg/buffer/`
-- Used by `io.CopyBuffer()` for efficient data transfer
-- Zero-copy when possible via `sync.Pool`
-
-**Benefits**:
-- Fewer system calls (larger buffers)
-- Better throughput on high-bandwidth links
-- Reduced CPU overhead from buffer operations
-- More efficient memory reuse via pools
-
-**Performance Impact**:
-- TCP throughput: ~5-8x improvement on high-bandwidth links
-- UDP packet handling: ~3-4x more efficient
-- TUN throughput: ~40x improvement (8 Mbps → 300+ Mbps)
-- Reduced CPU usage: ~40% fewer copy operations
-
-### 7. PCAP Buffer Optimization
-
-**Problem**: Small PCAP buffers caused packet loss under burst traffic.
-
-**Solution**: Increased socket buffer and queue sizes.
-
-**Configuration**:
-- `sockbuf`: PCAP socket buffer (default: 16MB server, 8MB client)
-- `send_queue_size`: Send queue depth (default: 5000)
-
-**Optimized Defaults**:
-- Server sockbuf: 8MB → 16MB (2x improvement)
-- Client sockbuf: 4MB → 8MB (2x improvement)
-- Send queue: 1000 → 5000 (5x improvement)
-
-**Implementation**:
-- PCAP buffer in `internal/socket/`
-- Asynchronous send queue with multiple workers
-- Connection cleanup interval: 30s → 60s (50% less overhead)
-
-**Benefits**:
-- Handles traffic bursts without packet loss
-- Better capture performance under load
-- Reduced packet drops in send queue
-- Lower CPU overhead from cleanup
-
-**Performance Impact**:
-- 5x better burst handling capacity
-- ~50% reduction in cleanup CPU overhead
-- Near-zero packet loss under typical loads
-
-### 5. Resource Management
-
-**Automatic Cleanup**:
-- Connection pool idle timeout (removes stale connections)
-- Send queue backpressure (drops packets when full)
-- Graceful shutdown (closes all resources)
-
-**Monitoring**:
-- Dropped packet counter (`droppedPackets` atomic counter)
-- Connection pool size tracking (`pool.Len()`)
-
-## Performance Tuning Guide
-
-### For High Throughput (Recommended for Most Users)
-
-The optimized defaults are already configured for high throughput. For even better performance:
+### Low-Latency Profile
 
 ```yaml
 performance:
-  packet_workers: 8              # More workers for parallelism
-  max_concurrent_streams: 20000  # Higher limit
-  stream_worker_pool_size: 15000 # Larger pool
+  max_concurrent_streams: 15000
+  packet_workers: 2
+  stream_worker_pool_size: 6000
+  max_retry_attempts: 5
+  retry_initial_backoff_ms: 50
+  retry_max_backoff_ms: 1000
+  connection_health_check_ms: 400
+  tcp_flag_refresh_ms: 2000
   enable_connection_pooling: true
-  tcp_connection_pool_size: 500
-
-transport:
-  tcpbuf: 131072                 # 128KB for very high bandwidth
-  udpbuf: 32768                  # 32KB for heavy UDP traffic
-  tunbuf: 524288                 # 512KB for ultra-fast TUN tunnels
+  tcp_connection_pool_size: 256
 
 network:
   pcap:
-    sockbuf: 33554432            # 32MB for extreme loads
-    send_queue_size: 10000       # Even larger queue
+    send_queue_size: 20000
+    max_retries: 4
+    initial_backoff_ms: 10
+    max_backoff_ms: 500
 ```
 
-### For Low Latency
+### High-Throughput Profile
 
 ```yaml
 performance:
-  packet_workers: 2              # Lower overhead
-  max_concurrent_streams: 1000   # Conservative limit
-  retry_initial_backoff_ms: 50   # Faster retries
-  enable_connection_pooling: false # No pooling overhead
+  packet_workers: 8
+  max_concurrent_streams: 80000
+  stream_worker_pool_size: 30000
+  enable_connection_pooling: true
+  tcp_connection_pool_size: 1024
+  tcp_connection_idle_timeout: 120
 
 transport:
-  tcpbuf: 32768                  # 32KB (balanced)
-  udpbuf: 8192                   # 8KB (balanced)
-  tunbuf: 131072                 # 128KB (balanced)
-```
-
-### For Resource-Constrained Systems
-
-```yaml
-performance:
-  packet_workers: 1              # Minimal workers
-  max_concurrent_streams: 500    # Low limit
-  stream_worker_pool_size: 1000  # Smaller pool
-  enable_connection_pooling: false
-
-transport:
-  tcpbuf: 16384                  # 16KB (minimal)
-  udpbuf: 4096                   # 4KB (minimal)
-  tunbuf: 65536                  # 64KB (minimal)
+  tcpbuf: 262144
+  udpbuf: 65536
+  tunbuf: 1048576
 
 network:
   pcap:
-    sockbuf: 2097152             # 2MB (minimal)
-    send_queue_size: 1000        # Smaller queue
+    sockbuf: 67108864
+    send_queue_size: 60000
 ```
 
-## Benchmarks
+## Observability
 
-### Buffer Size Impact (High-Bandwidth Link)
-- **Before (8KB TCP buffer)**: ~100 MB/s throughput (baseline)
-- **After (64KB TCP buffer)**: ~600-800 MB/s throughput (measured on test system)
-- **Improvement**: 6-8x faster data transfer
-- **Note**: Actual throughput depends on network conditions, hardware, and system configuration
+`paqet` emits packet pressure warnings every 30 seconds when pressure exists:
 
-### TUN Mode Bandwidth Impact
-- **Before (1.5KB MTU buffer, manual loops)**: ~8 Mbps throughput
-- **After (256KB pooled buffer, io.CopyBuffer)**: ~300+ Mbps throughput
-- **Improvement**: 40x faster TUN tunnel performance
-- **Note**: Can achieve 500+ Mbps on high-end hardware with optimal network conditions
+- client: `client packet pressure: dropped=..., queue_depth=...`
+- server: `server packet pressure: dropped=..., queue_depth=...`
 
-### PCAP Queue Performance (Burst Traffic)
-- **Before (1000 queue)**: ~15% packet loss at 5000 pps bursts
-- **After (5000 queue)**: <1% packet loss at 5000 pps bursts
-- **Improvement**: 15x reduction in packet drops
+If this appears continuously:
 
-### Packet Processing (4-core system)
-- Before: ~10,000 packets/sec (single worker)
-- After: ~35,000 packets/sec (4 workers)
-- **Improvement**: 3.5x
+1. Increase `network.pcap.send_queue_size`.
+2. Increase `performance.packet_workers`.
+3. Increase `network.pcap.sockbuf`.
+4. Reduce burst rate or upstream fan-out.
 
-### Connection Pooling (repeated connections)
-- Without pooling: ~15ms per request (includes TCP handshake)
-- With pooling: ~3ms per request (reused connection)
-- **Improvement**: 5x faster
+## Migration Notes for v1.4
 
-### Memory Usage
-- Concurrency limit prevents unbounded growth
-- Typical memory with optimized defaults: 80-150MB (vs 500MB+ without limits under load)
-- Buffer pools reduce memory allocation overhead through reuse
-
-## Best Practices
-
-1. **Use the optimized defaults** - They're configured for high throughput and reliability
-2. **Always set `max_concurrent_streams`** in production to prevent resource exhaustion
-3. **Use `packet_workers = numCPU`** for best throughput on multi-core systems
-4. **Enable connection pooling** if you proxy to a small set of backends
-5. **Monitor dropped packets** - if non-zero, increase `send_queue_size`
-6. **Tune retry backoff** based on network conditions
-7. **Test under load** before deploying to production
-8. **Use larger buffers for high-bandwidth links** - 128KB TCP buffers for gigabit+ links
-9. **Monitor memory usage** - Adjust pool sizes if memory is constrained
-10. **For TUN mode**: The default 256KB buffer provides excellent performance (300+ Mbps). For even higher throughput (500+ Mbps), use `tunbuf: 524288` (512KB) on high-end hardware.
-
-## Troubleshooting
-
-### High Memory Usage
-- Reduce `max_concurrent_streams`
-- Reduce `tcp_connection_pool_size`
-- Reduce `tcpbuf` and `udpbuf` sizes
-- Check for connection leaks
-
-### Low Throughput
-- **First, check if defaults are being used** - They're optimized for high throughput
-- Increase `packet_workers`
-- Increase `send_queue_size` in `pcap` config
-- Enable connection pooling
-- Consider larger `tcpbuf` (128KB+) for very high bandwidth
-- Check CPU and network utilization
-
-### Connection Errors
-- Increase `max_retry_attempts`
-- Adjust retry backoff values
-- Check network latency
-
-### Dropped Packets
-- **Check current queue size** - Defaults are now 5000 (up from 1000)
-- Increase `send_queue_size` if still seeing drops
-- Add more `packet_workers`
-- Check CPU saturation
-- Consider larger `sockbuf` for better burst handling
-
-## Migration Guide
-
-**Upgrading from older versions**: All optimizations are automatic! Your existing configurations will continue to work with the improved defaults.
-
-**What Changed**:
-- TCP buffer: 8KB → 64KB (8x improvement)
-- UDP buffer: 4KB → 16KB (4x improvement)
-- TUN buffer: 1.5KB → 256KB (170x improvement - NEW!)
-- Server PCAP buffer: 8MB → 16MB (2x improvement)
-- Client PCAP buffer: 4MB → 8MB (2x improvement)
-- Send queue: 1000 → 5000 (5x improvement)
-- Worker pools: Server 5000→10000, Client 2000→5000
-- Cleanup interval: 30s → 60s (50% less overhead)
-
-**Action Required**: None! Just upgrade and enjoy better performance.
-
-**To Customize**:
-1. Add `performance`, `transport`, or `network.pcap` sections to your config
-2. Start with defaults (or omit the section entirely)
-3. Monitor performance metrics
-4. Tune values based on your workload
-
-No code changes required - all optimizations are configuration-driven.
+- Most users do not need manual tuning after upgrade.
+- Existing configs remain valid.
+- If you previously hardcoded small static buffers/queues, remove overrides and re-test with adaptive defaults first.
+- For QUIC-specific tuning, see `docs/QUIC.md`.
