@@ -3,6 +3,7 @@ package quic
 import (
 	"context"
 	"net"
+	"paqet/internal/socket"
 	"paqet/internal/tnet"
 	"time"
 
@@ -12,24 +13,27 @@ import (
 // Conn wraps a QUIC connection to implement the tnet.Conn interface
 type Conn struct {
 	connection *quic.Conn
+	packetConn *socket.PacketConn
 	ctx        context.Context
 	cancel     context.CancelFunc
 }
 
-func newConn(qconn *quic.Conn) *Conn {
+func newConn(qconn *quic.Conn, pConn *socket.PacketConn) *Conn {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Conn{
 		connection: qconn,
+		packetConn: pConn,
 		ctx:        ctx,
 		cancel:     cancel,
 	}
 }
 
 // newConnWithContext creates a Conn with a parent context for proper cancellation propagation
-func newConnWithContext(qconn *quic.Conn, parentCtx context.Context) *Conn {
+func newConnWithContext(qconn *quic.Conn, pConn *socket.PacketConn, parentCtx context.Context) *Conn {
 	ctx, cancel := context.WithCancel(parentCtx)
 	return &Conn{
 		connection: qconn,
+		packetConn: pConn,
 		ctx:        ctx,
 		cancel:     cancel,
 	}
@@ -89,7 +93,13 @@ func (c *Conn) Ping(wait bool) error {
 
 func (c *Conn) Close() error {
 	c.cancel()
-	return c.connection.CloseWithError(0, "connection closed")
+	err := c.connection.CloseWithError(0, "connection closed")
+	if c.packetConn != nil {
+		if pErr := c.packetConn.Close(); err == nil {
+			err = pErr
+		}
+	}
+	return err
 }
 
 func (c *Conn) LocalAddr() net.Addr {
@@ -116,4 +126,11 @@ func (c *Conn) SetWriteDeadline(t time.Time) error {
 	// QUIC connections don't support connection-level deadlines
 	// Deadlines must be set per-stream using stream.SetWriteDeadline()
 	return nil
+}
+
+func (c *Conn) PacketStats() (dropped uint64, queueDepth int) {
+	if c.packetConn == nil {
+		return 0, 0
+	}
+	return c.packetConn.DroppedPackets(), c.packetConn.QueueDepth()
 }

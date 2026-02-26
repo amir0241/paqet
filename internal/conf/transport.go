@@ -17,9 +17,23 @@ type Transport struct {
 
 func (t *Transport) setDefaults(role string) {
 	cpus := sysCPUCount()
+	if t.Protocol == "" {
+		t.Protocol = "quic"
+	}
 
 	if t.Conn == 0 {
-		t.Conn = 1
+		if role == "client" {
+			switch t.Protocol {
+			case "quic":
+				t.Conn = clampInt(cpus/2, 1, 4)
+			case "kcp":
+				t.Conn = clampInt(cpus/3, 1, 3)
+			default:
+				t.Conn = 1
+			}
+		} else {
+			t.Conn = 1
+		}
 	}
 
 	if t.TCPBuf == 0 {
@@ -46,8 +60,14 @@ func (t *Transport) setDefaults(role string) {
 
 	switch t.Protocol {
 	case "kcp":
+		if t.KCP == nil {
+			t.KCP = &KCP{}
+		}
 		t.KCP.setDefaults(role)
 	case "quic":
+		if t.QUIC == nil {
+			t.QUIC = &QUIC{}
+		}
 		t.QUIC.setDefaults(role)
 	}
 }
@@ -78,8 +98,16 @@ func (t *Transport) validate() []error {
 
 	switch t.Protocol {
 	case "kcp":
+		if t.KCP == nil {
+			errors = append(errors, fmt.Errorf("transport.kcp is required when protocol is 'kcp'"))
+			return errors
+		}
 		errors = append(errors, t.KCP.validate()...)
 	case "quic":
+		if t.QUIC == nil {
+			errors = append(errors, fmt.Errorf("transport.quic is required when protocol is 'quic'"))
+			return errors
+		}
 		errors = append(errors, t.QUIC.validate()...)
 	}
 

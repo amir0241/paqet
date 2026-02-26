@@ -29,18 +29,18 @@ func (p *PCAP) setDefaults(role string) {
 		}
 	}
 	if p.SendQueueSize == 0 {
-		// Scale with CPU count: 7500 slots per core, between 5000 and 100000.
-		// e.g. 4 CPUs → 30000.
-		p.SendQueueSize = clampInt(cpus*7500, 5000, 100000)
+		// Scale with CPU count: 10000 slots per core, between 10000 and 100000.
+		// Larger queues reduce transient drops under bursty load.
+		p.SendQueueSize = clampInt(cpus*10000, 10000, 100000)
 	}
 	if p.MaxRetries == 0 {
-		p.MaxRetries = 3
+		p.MaxRetries = 5
 	}
 	if p.InitialBackoff == 0 {
-		p.InitialBackoff = 10 // 10ms
+		p.InitialBackoff = 15 // 15ms
 	}
 	if p.MaxBackoff == 0 {
-		p.MaxBackoff = 1000 // 1s
+		p.MaxBackoff = 2000 // 2s
 	}
 }
 

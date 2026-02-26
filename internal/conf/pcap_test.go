@@ -124,7 +124,7 @@ func TestPCAPSetDefaults(t *testing.T) {
 
 	clientMB := nextPowerOf2(clampInt(ramMB/512, 8, 32))
 	expectedClientSockbuf := clientMB * 1024 * 1024
-	expectedQueueSize := clampInt(cpus*7500, 5000, 100000)
+	expectedQueueSize := clampInt(cpus*10000, 10000, 100000)
 
 	tests := []struct {
 		name                string
@@ -142,9 +142,9 @@ func TestPCAPSetDefaults(t *testing.T) {
 			initial:             PCAP{},
 			expectedSockbuf:     expectedServerSockbuf,
 			expectedQueueSize:   expectedQueueSize,
-			expectedRetries:     3,
-			expectedInitBackoff: 10,
-			expectedMaxBackoff:  1000,
+			expectedRetries:     5,
+			expectedInitBackoff: 15,
+			expectedMaxBackoff:  2000,
 		},
 		{
 			name:                "client defaults",
@@ -152,9 +152,9 @@ func TestPCAPSetDefaults(t *testing.T) {
 			initial:             PCAP{},
 			expectedSockbuf:     expectedClientSockbuf,
 			expectedQueueSize:   expectedQueueSize,
-			expectedRetries:     3,
-			expectedInitBackoff: 10,
-			expectedMaxBackoff:  1000,
+			expectedRetries:     5,
+			expectedInitBackoff: 15,
+			expectedMaxBackoff:  2000,
 		},
 		{
 			name: "custom values preserved",

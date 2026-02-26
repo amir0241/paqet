@@ -35,7 +35,7 @@ func (k *KCP) setDefaults(role string) {
 	cpus := sysCPUCount()
 
 	if k.Mode == "" {
-		k.Mode = "fast"
+		k.Mode = "fast2"
 	}
 	if k.MTU == 0 {
 		k.MTU = 1350
