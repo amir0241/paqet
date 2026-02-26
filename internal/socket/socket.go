@@ -38,6 +38,7 @@ func New(ctx context.Context, cfg *conf.Network) (*PacketConn, error) {
 
 	recvHandle, err := NewRecvHandle(cfg)
 	if err != nil {
+		sendHandle.Close()
 		return nil, fmt.Errorf("failed to create receive handle on %s: %v", cfg.Interface.Name, err)
 	}
 
@@ -195,4 +196,18 @@ func (c *PacketConn) SetWriteBuffer(size int) error {
 	// via PCAP.Sockbuf configuration. We return nil to indicate success
 	// to quic-go without actually modifying any buffer.
 	return nil
+}
+
+func (c *PacketConn) DroppedPackets() uint64 {
+	if c.sendHandle == nil {
+		return 0
+	}
+	return c.sendHandle.DroppedPackets()
+}
+
+func (c *PacketConn) QueueDepth() int {
+	if c.sendHandle == nil {
+		return 0
+	}
+	return c.sendHandle.QueueDepth()
 }
