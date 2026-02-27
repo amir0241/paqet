@@ -30,7 +30,7 @@ func startClient(cfg *conf.Conf) {
 		flog.Fatalf("Failed to initialize client: %v", err)
 	}
 	if err := client.Start(ctx); err != nil {
-		flog.Infof("Client encountered an error: %v", err)
+		flog.Fatalf("Failed to start client: %s", err.Error())
 	}
 
 	for _, ss := range cfg.SOCKS5 {

@@ -13,7 +13,7 @@ import (
 	"github.com/quic-go/quic-go"
 )
 
-func Dial(addr *net.UDPAddr, cfg *conf.QUIC, pConn *socket.PacketConn) (tnet.Conn, error) {
+func Dial(ctx context.Context, addr *net.UDPAddr, cfg *conf.QUIC, pConn *socket.PacketConn) (tnet.Conn, error) {
 	// Generate TLS config for client
 	tlsConfig, err := cfg.GenerateTLSConfig("client")
 	if err != nil {
@@ -30,12 +30,13 @@ func Dial(addr *net.UDPAddr, cfg *conf.QUIC, pConn *socket.PacketConn) (tnet.Con
 
 	flog.Debugf("QUIC dialing %s", addr.String())
 
-	// Use context with timeout to prevent indefinite dial attempts
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	// Use a timeout derived from the parent context to prevent indefinite dial
+	// attempts while still honouring parent context cancellation (e.g. shutdown).
+	dialCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	// Dial QUIC connection using the packet connection
-	qconn, err := quic.Dial(ctx, pConn, addr, tlsConfig, quicConfig)
+	qconn, err := quic.Dial(dialCtx, pConn, addr, tlsConfig, quicConfig)
 	if err != nil {
 		return nil, fmt.Errorf("QUIC connection attempt failed: %v", err)
 	}

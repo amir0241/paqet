@@ -26,10 +26,10 @@ func (c *Client) newConn(forceCheck bool) (tnet.Conn, error) {
 	}
 
 	if tc.conn == nil {
-		flog.Errorf("connection is unexpectedly nil, attempting to recreate connection")
+		flog.Infof("no active connection, creating transport connection")
 		c, err := tc.createConn()
 		if err != nil {
-			flog.Errorf("failed to create initial connection: %v", err)
+			flog.Errorf("failed to create transport connection: %s", err.Error())
 			return nil, fmt.Errorf("failed to create initial connection: %w", err)
 		}
 		tc.conn = c
@@ -61,7 +61,7 @@ func (c *Client) newConn(forceCheck bool) (tnet.Conn, error) {
 		}
 		c, err := tc.createConn()
 		if err != nil {
-			flog.Errorf("failed to recreate connection: %v", err)
+			flog.Errorf("failed to recreate connection: %s", err.Error())
 			return nil, fmt.Errorf("failed to recreate connection: %w", err)
 		}
 		tc.conn = c
