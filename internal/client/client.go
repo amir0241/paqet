@@ -30,10 +30,13 @@ func (c *Client) Start(ctx context.Context) error {
 	for i := range c.cfg.Transport.Conn {
 		tc, err := newTimedConn(ctx, c.cfg)
 		if err != nil {
-			flog.Errorf("failed to create connection %d: %v", i+1, err)
-			return err
+			flog.Warnf("connection %d could not be established at startup (%s), will retry on first use", i+1, err.Error())
+			// Add a placeholder with conn=nil. newConn() checks for nil and calls
+			// createConn() on first use, so all zero-value fields are safe here.
+			tc = &timedConn{cfg: c.cfg, ctx: ctx}
+		} else {
+			flog.Debugf("client connection %d created successfully", i+1)
 		}
-		flog.Debugf("client connection %d created successfully", i+1)
 		c.iter.Items = append(c.iter.Items, tc)
 	}
 	// Note: ticker() is currently disabled but kept for potential future use

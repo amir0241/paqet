@@ -44,7 +44,7 @@ func (tc *timedConn) createConn() (tnet.Conn, error) {
 	case "kcp":
 		conn, err = kcp.Dial(tc.cfg.Server.Addr, tc.cfg.Transport.KCP, pConn)
 	case "quic":
-		conn, err = quic.Dial(tc.cfg.Server.Addr, tc.cfg.Transport.QUIC, pConn)
+		conn, err = quic.Dial(tc.ctx, tc.cfg.Server.Addr, tc.cfg.Transport.QUIC, pConn)
 	default:
 		_ = pConn.Close()
 		return nil, fmt.Errorf("unsupported transport protocol: %s", tc.cfg.Transport.Protocol)
