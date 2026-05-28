@@ -9,7 +9,6 @@ import (
 	"paqet/internal/flog"
 	"paqet/internal/forward"
 	"paqet/internal/socks"
-	"paqet/internal/tunnel"
 	"syscall"
 )
 
@@ -30,7 +29,7 @@ func startClient(cfg *conf.Conf) {
 		flog.Fatalf("Failed to initialize client: %v", err)
 	}
 	if err := client.Start(ctx); err != nil {
-		flog.Fatalf("Failed to start client: %s", err.Error())
+		flog.Infof("Client encountered an error: %v", err)
 	}
 
 	for _, ss := range cfg.SOCKS5 {
@@ -50,24 +49,6 @@ func startClient(cfg *conf.Conf) {
 		if err := f.Start(ctx, ff.Protocol); err != nil {
 			flog.Infof("Forward encountered an error: %v", err)
 		}
-	}
-
-	// Start TUN tunnel if enabled
-	if cfg.TUN.Enabled {
-		tun, err := tunnel.New(&cfg.TUN)
-		if err != nil {
-			flog.Fatalf("Failed to initialize TUN: %v", err)
-		}
-		defer tun.Close()
-
-		handler := tunnel.NewHandler(tun, client)
-		go func() {
-			if err := handler.Start(ctx); err != nil {
-				if err != context.Canceled {
-					flog.Errorf("TUN handler error: %v", err)
-				}
-			}
-		}()
 	}
 
 	<-ctx.Done()

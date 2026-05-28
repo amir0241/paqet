@@ -90,13 +90,10 @@ func (p *ConnPool) Get(ctx context.Context) (net.Conn, error) {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case pc, ok := <-p.conns:
-			if !ok {
-				return nil, ErrPoolClosed
-			}
+		case pc := <-p.conns:
 			// Got a connection from pool
 			// Check if it's still valid
-			if pc == nil || pc.Conn == nil {
+			if pc.Conn == nil {
 				// Try to get another one (loop continues)
 				continue
 			}
