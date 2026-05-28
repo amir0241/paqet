@@ -60,28 +60,31 @@ func (h *Handler) handleTCPConnect(conn *net.TCPConn, r *socks5.Request) error {
 
 	errCh := make(chan error, 2)
 	go func() {
-		err := buffer.CopyT(conn, strm)
-		select {
-		case errCh <- err:
-		case <-h.ctx.Done():
-		}
+		errCh <- buffer.CopyT(conn, strm)
 	}()
 	go func() {
-		err := buffer.CopyT(strm, conn)
-		select {
-		case errCh <- err:
-		case <-h.ctx.Done():
-		}
+		errCh <- buffer.CopyT(strm, conn)
 	}()
 
+	// Wait for the first direction to finish, then close both ends to unblock the other goroutine.
+	var firstErr error
 	select {
-	case err := <-errCh:
-		if err != nil {
-			flog.Errorf("SOCKS5 stream %d failed for %s -> %s: %v", strm.SID(), conn.RemoteAddr(), r.Address(), err)
-		}
-		return err
+	case firstErr = <-errCh:
+		strm.Close()
+		conn.Close()
 	case <-h.ctx.Done():
 		flog.Debugf("SOCKS5 connection %s -> %s closed due to shutdown", conn.RemoteAddr(), r.Address())
 		return h.ctx.Err()
 	}
+
+	// Drain the second goroutine so no goroutine outlives this function.
+	select {
+	case <-errCh:
+	case <-h.ctx.Done():
+	}
+
+	if firstErr != nil {
+		flog.Errorf("SOCKS5 stream %d failed for %s -> %s: %v", strm.SID(), conn.RemoteAddr(), r.Address(), firstErr)
+	}
+	return firstErr
 }

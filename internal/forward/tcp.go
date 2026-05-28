@@ -76,29 +76,30 @@ func (f *Forward) handleTCPConn(ctx context.Context, conn net.Conn) error {
 
 	errCh := make(chan error, 2)
 	go func() {
-		err := buffer.CopyT(conn, strm)
-		select {
-		case errCh <- err:
-		case <-ctx.Done():
-		}
+		errCh <- buffer.CopyT(conn, strm)
 	}()
 	go func() {
-		err := buffer.CopyT(strm, conn)
-		select {
-		case errCh <- err:
-		case <-ctx.Done():
-		}
+		errCh <- buffer.CopyT(strm, conn)
 	}()
 
+	// Wait for the first direction to finish, then close both ends to unblock the other goroutine.
+	var firstErr error
 	select {
-	case err := <-errCh:
-		if err != nil {
-			flog.Errorf("TCP stream %d failed for %s -> %s: %v", strm.SID(), conn.RemoteAddr(), f.targetAddr, err)
-			return err
-		}
+	case firstErr = <-errCh:
+		strm.Close()
+		conn.Close()
 	case <-ctx.Done():
 		return ctx.Err()
 	}
 
-	return nil
+	// Drain the second goroutine so no goroutine outlives this function.
+	select {
+	case <-errCh:
+	case <-ctx.Done():
+	}
+
+	if firstErr != nil {
+		flog.Errorf("TCP stream %d failed for %s -> %s: %v", strm.SID(), conn.RemoteAddr(), f.targetAddr, firstErr)
+	}
+	return firstErr
 }
