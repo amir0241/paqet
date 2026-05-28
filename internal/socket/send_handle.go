@@ -3,6 +3,7 @@ package socket
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -11,8 +12,10 @@ import (
 	"paqet/internal/pkg/hash"
 	"paqet/internal/pkg/iterator"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/gopacket/gopacket"
@@ -144,6 +147,24 @@ func NewSendHandle(cfg *conf.Network) (*SendHandle, error) {
 	}
 
 	return sh, nil
+}
+
+// maxEnobufsInlineRetries is the number of times to retry a WritePacketData call
+// inline when ENOBUFS is returned. ENOBUFS is a transient kernel buffer-full condition
+// that usually clears within a few milliseconds. Retrying here prevents the error
+// from propagating to the transport layer and tearing down the connection.
+const maxEnobufsInlineRetries = 5
+
+// isEnobufs reports whether err represents a "no buffer space available" condition.
+// pcap returns this as a plain error message; it may also appear as a wrapped syscall error.
+func isEnobufs(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, syscall.ENOBUFS) {
+		return true
+	}
+	return strings.Contains(err.Error(), "No buffer space available")
 }
 
 func (h *SendHandle) buildIPv4Header(dstIP net.IP) *layers.IPv4 {
@@ -336,7 +357,18 @@ func (h *SendHandle) executeWrite(req *sendRequest) error {
 	if err := gopacket.SerializeLayers(buf, opts, ethLayer, ipLayer, tcpLayer, gopacket.Payload(req.payload)); err != nil {
 		return err
 	}
-	return h.handle.WritePacketData(buf.Bytes())
+
+	// Write the packet, retrying inline on ENOBUFS. ENOBUFS is a transient
+	// OS buffer-full condition; a short sleep is usually enough to clear it.
+	// Retrying here keeps the error from ever reaching the transport layer
+	// (KCP/QUIC), which would otherwise close the whole connection.
+	data := buf.Bytes()
+	err := h.handle.WritePacketData(data)
+	for attempt := 1; attempt <= maxEnobufsInlineRetries && isEnobufs(err); attempt++ {
+		time.Sleep(time.Duration(1<<uint(attempt-1)) * time.Millisecond) // 1, 2, 4, 8, 16 ms
+		err = h.handle.WritePacketData(data)
+	}
+	return err
 }
 
 func (h *SendHandle) getClientTCPF(dstIP net.IP, dstPort uint16) conf.TCPF {

@@ -32,6 +32,7 @@ func IsRecoverable(err error) bool {
 			errno == syscall.EPIPE ||
 			errno == syscall.ECONNABORTED ||
 			errno == syscall.ETIMEDOUT ||
+			errno == syscall.ENOBUFS || // Transient kernel buffer exhaustion, retry
 			errno == syscall.ECONNREFUSED || // Still worth retrying
 			errno == syscall.EHOSTUNREACH || // Network might recover
 			errno == syscall.ENETUNREACH // Network might recover
