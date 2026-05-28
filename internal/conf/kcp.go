@@ -32,22 +32,26 @@ type KCP struct {
 }
 
 func (k *KCP) setDefaults(role string) {
-	cpus := sysCPUCount()
-
 	if k.Mode == "" {
-		k.Mode = "fast2"
+		k.Mode = "fast"
 	}
 	if k.MTU == 0 {
 		k.MTU = 1350
 	}
 
 	if k.Rcvwnd == 0 {
-		// Scale with CPU count: 2048 slots per core, clamped to KCP limits.
-		// e.g. 4 CPUs → 8192, 16 CPUs → 32768 (max).
-		k.Rcvwnd = clampInt(cpus*2048, 1024, 32768)
+		if role == "server" {
+			k.Rcvwnd = 1024
+		} else {
+			k.Rcvwnd = 512
+		}
 	}
 	if k.Sndwnd == 0 {
-		k.Sndwnd = clampInt(cpus*2048, 1024, 32768)
+		if role == "server" {
+			k.Sndwnd = 1024
+		} else {
+			k.Sndwnd = 512
+		}
 	}
 
 	// if k.Dshard == 0 {
@@ -62,12 +66,10 @@ func (k *KCP) setDefaults(role string) {
 	}
 
 	if k.Smuxbuf == 0 {
-		// Scale with CPU count: 1 MB per core, between 4 MB and 64 MB.
-		k.Smuxbuf = clampInt(cpus*1024*1024, 4*1024*1024, 64*1024*1024)
+		k.Smuxbuf = 4 * 1024 * 1024
 	}
 	if k.Streambuf == 0 {
-		// Scale with CPU count: 1 MB per core, between 2 MB and 32 MB.
-		k.Streambuf = clampInt(cpus*1024*1024, 2*1024*1024, 32*1024*1024)
+		k.Streambuf = 2 * 1024 * 1024
 	}
 }
 

@@ -17,13 +17,11 @@ import (
 	"paqet/internal/tnet"
 	"paqet/internal/tnet/kcp"
 	"paqet/internal/tnet/quic"
-	"paqet/internal/tunnel"
 )
 
 type Server struct {
 	cfg             *conf.Conf
 	pConn           *socket.PacketConn
-	tun             *tunnel.TUN
 	wg              sync.WaitGroup
 	streamSemaphore chan struct{} // Limits concurrent stream processing
 	connPools       map[string]*connpool.ConnPool
@@ -42,7 +40,7 @@ func New(cfg *conf.Conf) (*Server, error) {
 	}
 
 	// Initialize connection pools map if enabled
-	if cfg.Performance.ConnectionPoolingEnabled() {
+	if cfg.Performance.EnableConnectionPooling {
 		s.connPools = make(map[string]*connpool.ConnPool)
 	}
 
@@ -51,7 +49,7 @@ func New(cfg *conf.Conf) (*Server, error) {
 
 // getConnPool gets or creates a connection pool for a specific target address
 func (s *Server) getConnPool(addr string) (*connpool.ConnPool, error) {
-	if !s.cfg.Performance.ConnectionPoolingEnabled() {
+	if !s.cfg.Performance.EnableConnectionPooling {
 		return nil, nil
 	}
 
@@ -97,30 +95,17 @@ func (s *Server) Start() error {
 	defer cancel()
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-	defer signal.Stop(sig)
 	go func() {
 		<-sig
 		flog.Infof("Shutdown signal received, initiating graceful shutdown...")
 		cancel()
 	}()
 
-	// Initialize TUN if enabled
-	if s.cfg.TUN.Enabled {
-		tun, err := tunnel.New(&s.cfg.TUN)
-		if err != nil {
-			return fmt.Errorf("failed to initialize TUN: %v", err)
-		}
-		s.tun = tun
-		defer tun.Close()
-		flog.Infof("TUN device initialized: %s (%s)", s.cfg.TUN.Name, s.cfg.TUN.Addr)
-	}
-
 	pConn, err := socket.New(ctx, &s.cfg.Network)
 	if err != nil {
 		return fmt.Errorf("could not create raw packet conn: %w", err)
 	}
 	s.pConn = pConn
-	go s.monitorPacketStats(ctx)
 
 	var listener tnet.Listener
 	switch s.cfg.Transport.Protocol {
@@ -142,13 +127,9 @@ func (s *Server) Start() error {
 		return fmt.Errorf("unsupported transport protocol: %s", s.cfg.Transport.Protocol)
 	}
 	defer listener.Close()
-	go func() {
-		<-ctx.Done()
-		_ = listener.Close()
-	}()
 
 	poolingStatus := "disabled"
-	if s.cfg.Performance.ConnectionPoolingEnabled() {
+	if s.cfg.Performance.EnableConnectionPooling {
 		poolingStatus = fmt.Sprintf("enabled (pool size: %d, idle timeout: %ds)",
 			s.cfg.Performance.TCPConnectionPoolSize,
 			s.cfg.Performance.TCPConnectionIdleTimeout)
@@ -168,7 +149,7 @@ func (s *Server) Start() error {
 	s.wg.Wait()
 
 	// Close all connection pools
-	if s.cfg.Performance.ConnectionPoolingEnabled() {
+	if s.cfg.Performance.EnableConnectionPooling {
 		s.connPoolsMu.Lock()
 		for addr, pool := range s.connPools {
 			flog.Debugf("closing connection pool for %s", addr)
@@ -210,29 +191,5 @@ func (s *Server) listen(ctx context.Context, listener tnet.Listener) {
 			defer conn.Close()
 			s.handleConn(ctx, conn)
 		}()
-	}
-}
-
-func (s *Server) monitorPacketStats(ctx context.Context) {
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
-
-	var lastDropped uint64
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			if s.pConn == nil {
-				continue
-			}
-			dropped := s.pConn.DroppedPackets()
-			queueDepth := s.pConn.QueueDepth()
-			if dropped > lastDropped || queueDepth > 0 {
-				flog.Warnf("server packet pressure: dropped=%d (+%d), queue_depth=%d",
-					dropped, dropped-lastDropped, queueDepth)
-			}
-			lastDropped = dropped
-		}
 	}
 }

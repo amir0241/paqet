@@ -13,12 +13,10 @@ import (
 )
 
 type timedConn struct {
-	cfg             *conf.Conf
-	conn            tnet.Conn
-	expire          time.Time
-	ctx             context.Context
-	lastHealthCheck time.Time
-	lastTCPFSend    time.Time
+	cfg    *conf.Conf
+	conn   tnet.Conn
+	expire time.Time
+	ctx    context.Context
 }
 
 func newTimedConn(ctx context.Context, cfg *conf.Conf) (*timedConn, error) {
@@ -44,24 +42,18 @@ func (tc *timedConn) createConn() (tnet.Conn, error) {
 	case "kcp":
 		conn, err = kcp.Dial(tc.cfg.Server.Addr, tc.cfg.Transport.KCP, pConn)
 	case "quic":
-		conn, err = quic.Dial(tc.ctx, tc.cfg.Server.Addr, tc.cfg.Transport.QUIC, pConn)
+		conn, err = quic.Dial(tc.cfg.Server.Addr, tc.cfg.Transport.QUIC, pConn)
 	default:
-		_ = pConn.Close()
 		return nil, fmt.Errorf("unsupported transport protocol: %s", tc.cfg.Transport.Protocol)
 	}
-
+	
 	if err != nil {
-		_ = pConn.Close()
 		return nil, err
 	}
 	err = tc.sendTCPF(conn)
 	if err != nil {
-		_ = conn.Close()
 		return nil, err
 	}
-	now := time.Now()
-	tc.lastTCPFSend = now
-	tc.lastHealthCheck = now
 	return conn, nil
 }
 
@@ -85,4 +77,3 @@ func (tc *timedConn) close() {
 		tc.conn.Close()
 	}
 }
-

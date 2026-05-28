@@ -30,14 +30,14 @@ type Performance struct {
 	TCPConnectionPoolSize int `yaml:"tcp_connection_pool_size"`
 
 	// TCPConnectionIdleTimeout is how long to keep idle TCP connections in seconds
-	// Default is 75 seconds
+	// Default is 90 seconds
 	TCPConnectionIdleTimeout int `yaml:"tcp_connection_idle_timeout"`
 
 	// EnableConnectionPooling enables TCP connection pooling for upstream targets
-	EnableConnectionPooling *bool `yaml:"enable_connection_pooling"`
+	EnableConnectionPooling bool `yaml:"enable_connection_pooling"`
 
 	// MaxRetryAttempts is the maximum number of retry attempts for stream creation
-	// Default is 6
+	// Default is 5
 	MaxRetryAttempts int `yaml:"max_retry_attempts"`
 
 	// RetryInitialBackoffMs is the initial backoff in milliseconds for retry
@@ -45,67 +45,55 @@ type Performance struct {
 	RetryInitialBackoffMs int `yaml:"retry_initial_backoff_ms"`
 
 	// RetryMaxBackoffMs is the maximum backoff in milliseconds for retry
-	// Default is 5000ms (5 seconds)
+	// Default is 10000ms (10 seconds)
 	RetryMaxBackoffMs int `yaml:"retry_max_backoff_ms"`
-
-	// ConnectionHealthCheckMs controls how often a connection health probe is sent.
-	// Lower values detect failures faster but add control-plane overhead.
-	ConnectionHealthCheckMs int `yaml:"connection_health_check_ms"`
-
-	// TCPFlagRefreshMs controls how often PTCPF metadata is refreshed to the peer.
-	TCPFlagRefreshMs int `yaml:"tcp_flag_refresh_ms"`
 }
 
 func (p *Performance) setDefaults(role string) {
-	cpus := sysCPUCount()
-
 	if p.MaxConcurrentStreams == 0 {
-		// Scale with CPU count to allow more concurrent streams on more capable machines.
 		if role == "server" {
-			p.MaxConcurrentStreams = clampInt(cpus*12500, 50000, 100000)
+			// Server: Allow many concurrent streams for high pressure
+			p.MaxConcurrentStreams = 50000
 		} else {
-			p.MaxConcurrentStreams = clampInt(cpus*2500, 10000, 50000)
+			// Client: More conservative limit
+			p.MaxConcurrentStreams = 10000
 		}
 	}
 
 	if p.PacketWorkers == 0 {
-		// Default to number of logical CPUs for optimal parallelism.
-		// Clamped to the validation-allowed maximum of 64.
-		p.PacketWorkers = clampInt(runtime.GOMAXPROCS(0), 2, 64)
+		// Default to number of CPU cores for optimal parallelism
+		p.PacketWorkers = runtime.GOMAXPROCS(0)
+		if p.PacketWorkers < 2 {
+			p.PacketWorkers = 2
+		}
+		// For high-pressure scenarios, use more workers
 		if role == "server" && p.PacketWorkers < 4 {
 			p.PacketWorkers = 4
 		}
 	}
 
 	if p.StreamWorkerPoolSize == 0 {
-		// Scale with CPU count: 2500 per core (server) / 1250 per core (client).
 		if role == "server" {
-			p.StreamWorkerPoolSize = clampInt(cpus*2500, 10000, 100000)
+			p.StreamWorkerPoolSize = 10000 // Increased from 5000 for better concurrency
 		} else {
-			p.StreamWorkerPoolSize = clampInt(cpus*1250, 5000, 50000)
+			p.StreamWorkerPoolSize = 5000 // Increased from 2000 for better concurrency
 		}
 	}
 
 	if p.TCPConnectionPoolSize == 0 {
-		// Scale with CPU count while staying conservative to avoid excess open FDs.
 		if role == "server" {
-			p.TCPConnectionPoolSize = clampInt(cpus*64, 256, 4096)
+			p.TCPConnectionPoolSize = 500 // Larger pool for high-pressure servers
 		} else {
-			p.TCPConnectionPoolSize = clampInt(cpus*16, 64, 512)
+			p.TCPConnectionPoolSize = 100
 		}
 	}
 
 	if p.TCPConnectionIdleTimeout == 0 {
-		p.TCPConnectionIdleTimeout = 75
-	}
-
-	if p.EnableConnectionPooling == nil {
-		enabled := role == "server"
-		p.EnableConnectionPooling = &enabled
+		p.TCPConnectionIdleTimeout = 90
 	}
 
 	if p.MaxRetryAttempts == 0 {
-		p.MaxRetryAttempts = 6
+		p.MaxRetryAttempts = 5
 	}
 
 	if p.RetryInitialBackoffMs == 0 {
@@ -113,15 +101,7 @@ func (p *Performance) setDefaults(role string) {
 	}
 
 	if p.RetryMaxBackoffMs == 0 {
-		p.RetryMaxBackoffMs = 5000
-	}
-
-	if p.ConnectionHealthCheckMs == 0 {
-		p.ConnectionHealthCheckMs = 1000
-	}
-
-	if p.TCPFlagRefreshMs == 0 {
-		p.TCPFlagRefreshMs = 5000
+		p.RetryMaxBackoffMs = 10000
 	}
 }
 
@@ -164,21 +144,5 @@ func (p *Performance) validate() []error {
 		errors = append(errors, fmt.Errorf("retry_max_backoff_ms must be between retry_initial_backoff_ms and 60000"))
 	}
 
-	if p.ConnectionHealthCheckMs < 100 || p.ConnectionHealthCheckMs > 60000 {
-		errors = append(errors, fmt.Errorf("connection_health_check_ms must be between 100 and 60000"))
-	}
-
-	if p.TCPFlagRefreshMs < 500 || p.TCPFlagRefreshMs > 600000 {
-		errors = append(errors, fmt.Errorf("tcp_flag_refresh_ms must be between 500 and 600000"))
-	}
-
 	return errors
 }
-
-func (p *Performance) ConnectionPoolingEnabled() bool {
-	if p.EnableConnectionPooling == nil {
-		return false
-	}
-	return *p.EnableConnectionPooling
-}
-

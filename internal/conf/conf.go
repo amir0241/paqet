@@ -16,7 +16,6 @@ type Conf struct {
 	Listen      Server      `yaml:"listen"`
 	SOCKS5      []SOCKS5    `yaml:"socks5"`
 	Forward     []Forward   `yaml:"forward"`
-	TUN         TUN         `yaml:"tun"`
 	Network     Network     `yaml:"network"`
 	Server      Server      `yaml:"server"`
 	Transport   Transport   `yaml:"transport"`
@@ -57,7 +56,6 @@ func (c *Conf) setDefaults() {
 	for i := range c.Forward {
 		c.Forward[i].setDefaults()
 	}
-	c.TUN.setDefaults()
 	c.Network.setDefaults(c.Role)
 	c.Server.setDefaults()
 	c.Transport.setDefaults(c.Role)
@@ -70,8 +68,8 @@ func (c *Conf) validate() error {
 	var allErrors []error
 
 	allErrors = append(allErrors, c.Log.validate()...)
-	if c.Role == "client" && len(c.SOCKS5) == 0 && len(c.Forward) == 0 && !c.TUN.Enabled {
-		flog.Warnf("warning: client mode enabled but no SOCKS5, forward, or TUN configurations found")
+	if c.Role == "client" && len(c.SOCKS5) == 0 && len(c.Forward) == 0 {
+		flog.Warnf("warning: client mode enabled but no SOCKS5 or forward configurations found")
 	}
 	for i := range c.SOCKS5 {
 		errs := c.SOCKS5[i].validate()
@@ -86,8 +84,6 @@ func (c *Conf) validate() error {
 			allErrors = append(allErrors, fmt.Errorf("forward[%d] %v", i, err))
 		}
 	}
-
-	allErrors = append(allErrors, c.TUN.validate()...)
 
 	allErrors = append(allErrors, c.Network.validate()...)
 	allErrors = append(allErrors, c.Transport.validate()...)

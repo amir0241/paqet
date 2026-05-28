@@ -5,7 +5,7 @@ import (
 )
 
 func CopyT(dst io.Writer, src io.Reader) error {
-	bufp := TPool.Get()
+	bufp := TPool.Get().(*[]byte)
 	defer TPool.Put(bufp)
 	buf := *bufp
 

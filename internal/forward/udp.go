@@ -44,7 +44,7 @@ func (f *Forward) listenUDP(ctx context.Context) {
 }
 
 func (f *Forward) handleUDPPacket(ctx context.Context, conn *net.UDPConn) error {
-	bufp := buffer.UPool.Get()
+	bufp := buffer.UPool.Get().(*[]byte)
 	defer buffer.UPool.Put(bufp)
 	buf := *bufp
 
@@ -77,7 +77,7 @@ func (f *Forward) handleUDPPacket(ctx context.Context, conn *net.UDPConn) error 
 }
 
 func (f *Forward) handleUDPStrm(ctx context.Context, k uint64, strm tnet.Strm, conn *net.UDPConn, caddr *net.UDPAddr) {
-	bufp := buffer.UPool.Get()
+	bufp := buffer.UPool.Get().(*[]byte)
 	defer func() {
 		buffer.UPool.Put(bufp)
 		flog.Debugf("UDP stream %d closed for %s -> %s", strm.SID(), caddr, f.targetAddr)
