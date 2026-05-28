@@ -44,7 +44,7 @@ func (c *Conn) OpenStrm() (tnet.Strm, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Strm{stream: stream}, nil
+	return &Strm{stream: stream, id: tnet.NextSID()}, nil
 }
 
 func (c *Conn) AcceptStrm() (tnet.Strm, error) {
@@ -53,7 +53,7 @@ func (c *Conn) AcceptStrm() (tnet.Strm, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Strm{stream: stream}, nil
+	return &Strm{stream: stream, id: tnet.NextSID()}, nil
 }
 
 func (c *Conn) Ping(wait bool) error {
