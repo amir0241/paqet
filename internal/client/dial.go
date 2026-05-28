@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"paqet/internal/flog"
+	pkerrors "paqet/internal/pkg/errors"
 	"paqet/internal/tnet"
 	"time"
 )
@@ -18,12 +19,12 @@ func (c *Client) newConn() (tnet.Conn, error) {
 	}
 	if tc.conn == nil {
 		flog.Errorf("connection is unexpectedly nil, attempting to recreate connection")
-		c, err := tc.createConn()
+		newConn, err := tc.createConn()
 		if err != nil {
 			flog.Errorf("failed to create initial connection: %v", err)
 			return nil, fmt.Errorf("failed to create initial connection: %w", err)
 		}
-		tc.conn = c
+		tc.conn = newConn
 		tc.expire = time.Now().Add(time.Duration(autoExpire) * time.Second)
 	}
 
@@ -34,12 +35,12 @@ func (c *Client) newConn() (tnet.Conn, error) {
 		if tc.conn != nil {
 			tc.conn.Close()
 		}
-		c, err := tc.createConn()
+		newConn, err := tc.createConn()
 		if err != nil {
 			flog.Errorf("failed to recreate connection: %v", err)
 			return nil, fmt.Errorf("failed to recreate connection: %w", err)
 		}
-		tc.conn = c
+		tc.conn = newConn
 		tc.expire = time.Now().Add(time.Duration(autoExpire) * time.Second)
 	}
 	return tc.conn, nil
@@ -61,6 +62,9 @@ func (c *Client) newStrmWithRetry(attempt int) (tnet.Strm, error) {
 	
 	conn, err := c.newConn()
 	if err != nil {
+		if !pkerrors.IsRecoverable(err) {
+			return nil, err
+		}
 		flog.Debugf("session creation failed (attempt %d/%d), retrying after backoff", attempt+1, maxAttempts)
 		backoff := c.calculateRetryBackoff(attempt)
 		time.Sleep(backoff)
@@ -69,6 +73,9 @@ func (c *Client) newStrmWithRetry(attempt int) (tnet.Strm, error) {
 	
 	strm, err := conn.OpenStrm()
 	if err != nil {
+		if !pkerrors.IsRecoverable(err) {
+			return nil, err
+		}
 		flog.Debugf("failed to open stream (attempt %d/%d), retrying: %v", attempt+1, maxAttempts, err)
 		backoff := c.calculateRetryBackoff(attempt)
 		time.Sleep(backoff)

@@ -54,24 +54,18 @@ func New(ctx context.Context, cfg *conf.Network) (*PacketConn, error) {
 }
 
 func (c *PacketConn) ReadFrom(data []byte) (n int, addr net.Addr, err error) {
-	var timer *time.Timer
-	var deadline <-chan time.Time
+	ctx := c.ctx
 	if d, ok := c.readDeadline.Load().(time.Time); ok && !d.IsZero() {
-		timer = time.NewTimer(time.Until(d))
-		defer timer.Stop()
-		deadline = timer.C
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithDeadline(c.ctx, d)
+		defer cancel()
 	}
 
-	select {
-	case <-c.ctx.Done():
-		return 0, nil, c.ctx.Err()
-	case <-deadline:
-		return 0, nil, os.ErrDeadlineExceeded
-	default:
-	}
-
-	payload, addr, err := c.recvHandle.Read()
+	payload, addr, err := c.recvHandle.Read(ctx)
 	if err != nil {
+		if ctx.Err() != nil && ctx.Err() == context.DeadlineExceeded {
+			return 0, nil, os.ErrDeadlineExceeded
+		}
 		return 0, nil, err
 	}
 	n = copy(data, payload)

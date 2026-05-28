@@ -9,7 +9,7 @@ import (
 	"syscall"
 )
 
-func _(err error) bool {
+func IsRecoverable(err error) bool {
 	if err == nil || err == io.EOF {
 		return false
 	}
