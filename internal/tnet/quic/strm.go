@@ -23,6 +23,7 @@ func (s *Strm) Write(p []byte) (n int, err error) {
 }
 
 func (s *Strm) Close() error {
+	s.stream.CancelRead(0)
 	return s.stream.Close()
 }
 
