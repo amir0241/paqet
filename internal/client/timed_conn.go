@@ -44,14 +44,17 @@ func (tc *timedConn) createConn() (tnet.Conn, error) {
 	case "quic":
 		conn, err = quic.Dial(tc.cfg.Server.Addr, tc.cfg.Transport.QUIC, pConn)
 	default:
+		pConn.Close()
 		return nil, fmt.Errorf("unsupported transport protocol: %s", tc.cfg.Transport.Protocol)
 	}
-	
+
 	if err != nil {
+		pConn.Close()
 		return nil, err
 	}
 	err = tc.sendTCPF(conn)
 	if err != nil {
+		conn.Close()
 		return nil, err
 	}
 	return conn, nil
