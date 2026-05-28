@@ -28,7 +28,6 @@ func (c *Client) newConn() (tnet.Conn, error) {
 		tc.expire = time.Now().Add(time.Duration(autoExpire) * time.Second)
 	}
 
-	go tc.sendTCPF(tc.conn)
 	err := tc.conn.Ping(false)
 	if err != nil {
 		flog.Infof("connection lost, retrying....")
